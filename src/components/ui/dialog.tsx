@@ -7,11 +7,13 @@ export const Dialog = Primitive.Root;
 export const DialogTitle = Primitive.Title;
 export const DialogDescription = Primitive.Description;
 export function DialogContent({ children, className, ...props }: React.ComponentProps<typeof Primitive.Content>) {
+  const restoreFocus = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => { restoreFocus.current = document.activeElement as HTMLElement; }, []);
   return <Primitive.Portal>
-    <Primitive.Overlay className="preview-dialog-overlay fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm" />
-    <Primitive.Content className={cn('preview-dialog fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl', className)} {...props}>
+    <Primitive.Overlay className="preview-dialog-overlay" />
+    <Primitive.Content className={cn('preview-dialog', className)} onOpenAutoFocus={() => { restoreFocus.current = document.activeElement as HTMLElement; }} onCloseAutoFocus={event => { event.preventDefault(); restoreFocus.current?.focus(); }} {...props}>
       {children}
-      <Primitive.Close className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full border-0 bg-transparent text-slate-500 hover:bg-slate-100" aria-label="Close dialog"><X size={18} /></Primitive.Close>
+      <Primitive.Close className="dialog-close" aria-label="Close dialog"><X size={20} /></Primitive.Close>
     </Primitive.Content>
   </Primitive.Portal>;
 }

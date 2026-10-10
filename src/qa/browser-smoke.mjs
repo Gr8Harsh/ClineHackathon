@@ -81,9 +81,24 @@ try {
     return r.result.value;
   }
   const visible = `e => !!(e.getClientRects().length) && !e.closest('[hidden]')`;
+  async function pointer(expression) {
+    await js(`(${expression}).scrollIntoView({block:'center',behavior:'instant'})`);
+    await pause(80);
+    const point = await js(`(()=>{const e=${expression};const r=e.getBoundingClientRect();const x=r.left+r.width/2,y=r.top+r.height/2;return {x,y,hit:e.contains(document.elementFromPoint(x,y))};})()`);
+    assert.ok(point.hit, `Pointer target must be visible and unobscured: ${expression}`);
+    await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+    await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+    await pause(100);
+  }
+  async function key(key, code = key, modifiers = 0) {
+    const windowsVirtualKeyCode = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35 }[key];
+    await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode });
+    await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
+    await pause(100);
+  }
   async function click(text) {
     await until(() => js(`Array.from(document.querySelectorAll('button')).filter(${visible}).some(e=>e.textContent.trim()===${JSON.stringify(text)}&&!e.disabled)`), `button ${text}`);
-    await js(`Array.from(document.querySelectorAll('button')).filter(${visible}).find(e=>e.textContent.trim()===${JSON.stringify(text)}&&!e.disabled).click()`);
+    await pointer(`Array.from(document.querySelectorAll('button')).filter(${visible}).find(e=>e.textContent.trim()===${JSON.stringify(text)}&&!e.disabled)`);
     await pause(100);
   }
   const text = () => js('document.body.innerText');
@@ -98,10 +113,90 @@ try {
   await cdp('Runtime.enable'); await cdp('Page.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: base });
-  await until(async () => (await text()).includes('UI preview'), 'redesigned preview');
-  await screenshot('preview-chat-desktop');
+  await until(async () => (await text()).includes('How are you feeling'), 'redesigned preview');
+  assert.equal(await js(`document.querySelectorAll('.primary-tabs [role="tab"]').length`), 2);
+  assert.equal(await js(`document.querySelector('.primary-tabs [aria-selected="true"]').textContent`), 'AI assistant');
+  assert.equal(await js(`document.querySelector('.assistant-welcome h2').textContent`), 'How are you feeling?');
+  assert.equal(await js(`document.querySelectorAll('.chat-message').length`), 0);
+  await screenshot('preview-welcome-desktop');
+  const orbFrame = await js(`document.querySelector('.assistant-orb canvas').toDataURL()`);
+  await pause(250);
+  assert.notEqual(await js(`document.querySelector('.assistant-orb canvas').toDataURL()`), orbFrame);
+  await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await pause(100);
+  const stillFrame = await js(`document.querySelector('.assistant-orb canvas').toDataURL()`);
+  await pause(250);
+  assert.equal(await js(`document.querySelector('.assistant-orb canvas').toDataURL()`), stillFrame);
+  await cdp('Emulation.setEmulatedMedia', { features: [] });
+  for (const [width, height] of [[344,747],[390,844],[430,740],[640,450]]) {
+    await cdp('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 });
+    assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
+    await js('window.scrollTo(0,0)'); await screenshot(`preview-welcome-${width}`);
+    assert.ok(await js(`document.querySelector('.assistant-welcome h2').getBoundingClientRect().bottom < document.querySelector('.chat-composer').getBoundingClientRect().top`), 'Welcome heading is not covered by composer');
+  }
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await pointer(`document.querySelector('[aria-label="Your answer"]')`);
+  await cdp('Input.insertText', { text: 'Unsent synthetic draft' });
+  await pointer(`document.getElementById('assistant-tab')`); await key('ArrowRight');
+  assert.equal(await js(`document.activeElement.id`), 'patient-tab');
+  assert.ok(await js(`!!document.querySelector('.home-screen')`));
+  await screenshot('preview-home-desktop');
+  await key('ArrowLeft');
+  assert.equal(await js(`document.activeElement.id`), 'assistant-tab');
+  assert.equal(await js(`document.querySelector('[aria-label="Your answer"]').value`), 'Unsent synthetic draft');
+  await js(`(()=>{const e=document.querySelector('[aria-label="Your answer"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  passed('Assistant opens first with two keyboard-accessible tabs, preserved draft, animated green form and reduced-motion fallback');
   assert.ok(!(await text()).includes('A question from your doctor'));
-  await click('Add report');
+  await pointer(`document.querySelector('[aria-label="Attach a text report"]')`);
+  await click('Cancel');
+  assert.ok(await js(`!!document.querySelector('.assistant-welcome')`));
+  await pointer(`document.querySelector('[aria-label="Your answer"]')`);
+  await cdp('Input.insertText', { text: 'I have had a headache' });
+  await pointer(`document.querySelector('[aria-label="Send answer"]')`);
+  assert.ok(!await js(`!!document.querySelector('.assistant-welcome')`));
+  const conversation = await js(`document.querySelector('.chat-scroll').innerText`);
+  await pointer(`document.getElementById('patient-tab')`);
+  await pointer(`document.getElementById('assistant-tab')`);
+  assert.equal(await js(`document.querySelector('.chat-scroll').innerText`), conversation);
+  passed('First message transitions from welcome to conversation; tab switching preserves messages and question');
+  const attach = `document.querySelector('[aria-label="Attach a text report"]')`;
+  const closeDialog = `document.querySelector('[aria-label="Close dialog"]')`;
+  const beforeUpload = await js(`document.querySelector('.chat-scroll').innerText`);
+  for (const [width,height] of [[1280,900],[390,844],[430,740],[344,747],[390,360],[640,450]]) {
+    await cdp('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 });
+    await pointer(attach);
+    const conversationPosition = await js('window.scrollY');
+    const bounds = await js(`(()=>{const r=document.querySelector('[role="dialog"]').getBoundingClientRect();const c=document.querySelector('.dialog-close').getBoundingClientRect();const f=document.querySelector('.report-footer').getBoundingClientRect();return {top:r.top,left:r.left,right:r.right,bottom:r.bottom,closeTop:c.top,footerBottom:f.bottom};})()`);
+    assert.ok(bounds.top >= 0 && bounds.left >= 0 && bounds.right <= width + 1 && bounds.bottom <= height + 1 && bounds.closeTop >= 0 && bounds.footerBottom <= height + 1, JSON.stringify(bounds));
+    await key('Tab');
+    assert.ok(await js(`!!document.activeElement.closest('[role="dialog"]')`));
+    await screenshot(`preview-upload-${width}x${height}`);
+    await click('Cancel');
+    assert.ok(!await js(`!!document.querySelector('[role="dialog"]')`));
+    assert.equal(await js(`document.querySelector('.chat-scroll').innerText`), beforeUpload);
+    assert.ok(Math.abs(await js('window.scrollY') - conversationPosition) < 2, 'Dismissal preserves conversation scroll position');
+    assert.equal(await js(`document.activeElement.getAttribute('aria-label')`), 'Attach a text report');
+    await pointer(attach); await pointer(closeDialog);
+    await pointer(attach); await key('Escape');
+    assert.ok(!await js(`!!document.querySelector('[role="dialog"]')`));
+    assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
+  }
+  passed('Upload stays on screen at six viewport sizes; pointer Cancel/X, Escape and focus return preserve the question');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await pointer(attach);
+  await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: 20, y: 20, button: 'left', clickCount: 1 });
+  await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 20, y: 20, button: 'left', clickCount: 1 });
+  await until(() => js(`!document.querySelector('[role="dialog"]')`), 'backdrop dismissal');
+  await pointer(attach);
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 360, deviceScaleFactor: 1, mobile: true });
+  const scrollPoint = await js(`(()=>{const r=document.querySelector('.report-body').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`);
+  await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', ...scrollPoint, deltaX: 0, deltaY: 500 });
+  await pause(200);
+  assert.ok(await js(`document.querySelector('.report-body').scrollTop>0`));
+  await click('Cancel');
+  passed('Real wheel scrolling stays inside the upload body while its Cancel footer remains clickable');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await pointer(attach);
   await js(`(async()=>{const svg=await fetch('/synthetic-report.svg').then(r=>r.blob());const u=URL.createObjectURL(svg);const bitmap=new Image();bitmap.src=u;await bitmap.decode();const c=document.createElement('canvas');c.width=1000;c.height=650;c.getContext('2d').drawImage(bitmap,0,0);const blob=await new Promise(r=>c.toBlob(r,'image/png'));const file=new File([blob],'synthetic-report.png',{type:'image/png'});const d=new DataTransfer();d.items.add(file);const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));window.qaSamplePng=c.toDataURL('image/png');URL.revokeObjectURL(u);})()`);
   await until(async () => (await text()).includes('Review extracted values'), 'on-device image OCR', 90000);
   assert.ok(await js(`document.querySelectorAll('input[aria-label="Observation value"]').length>=2`));
@@ -109,8 +204,30 @@ try {
   assert.ok(await js(`!!document.querySelector('[aria-label="Highlighted source region"]')`));
   await click('Save reviewed report');
   passed('Local image OCR extracts actual sample values and exposes original highlighted regions');
-  await click('Start a conversation');
-  for (const response of ['I have had a headache', 'For 3 days', 'No history to report', 'Skip for now', 'Not sure', 'I don’t have a report']) {
+  await pointer(attach);
+  await js(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(10*1024*1024+1)],'oversized.png',{type:'image/png'}));const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(async () => (await text()).includes('larger than 10 MB'), 'oversized report rejection');
+  await click('Cancel'); await pointer(attach);
+  assert.ok(!(await text()).includes('larger than 10 MB'));
+  await click('Paste text instead');
+  await fill('report-paste', 'Unsupported synthetic text only'); await click('Extract for review');
+  assert.match(await text(), /No supported values extracted/);
+  await fill('report-paste', 'Haemoglobin: 13.2 g/dL'); await click('Extract for review');
+  await pointer(`document.querySelector('[aria-label="Observation value"]')`);
+  await js(`(()=>{const e=document.querySelector('[aria-label="Observation value"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'13.5');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  assert.match(await text(), /Original: Haemoglobin: 13.2/);
+  await click('View source line 1'); await click('Delete value');
+  assert.equal(await js(`document.querySelectorAll('.report-source').length`), 0);
+  await click('Cancel'); await pointer(attach);
+  assert.ok(!(await text()).includes('Review extracted values'));
+  await js(`(async()=>{const b=await fetch(window.qaSamplePng).then(r=>r.blob());const d=new DataTransfer();d.items.add(new File([b],'cancelled.png',{type:'image/png'}));const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(() => js(`!!document.querySelector('.report-sheet progress')`), 'extraction begins');
+  await click('Cancel'); await pointer(attach); await pause(2000);
+  assert.ok(!(await text()).includes('Review extracted values'));
+  assert.ok(!await js(`!!document.querySelector('.report-sheet progress')`));
+  await click('Cancel');
+  passed('Oversized and unsupported reports, correction provenance, deletion, draft discard and active extraction cancellation');
+  for (const response of ['For 3 days', 'No history to report', 'Skip for now', 'Not sure', 'I don’t have a report']) {
     await click(response);
   }
   await click('Review my notes');
@@ -144,24 +261,28 @@ try {
   let pdf = '%PDF-1.4\n'; const offsets = [0];
   objects.forEach((o,i)=>{offsets.push(Buffer.byteLength(pdf));pdf+=`${i+1} 0 obj\n${o}\nendobj\n`;});
   const xref = Buffer.byteLength(pdf);pdf+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n ').join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  await js(`document.querySelector('[aria-label="Open profile menu"]').click()`); await click('Home'); await click('Add report');
+  await pointer(`document.querySelector('[aria-label="Open profile menu"]')`); await click('Add report');
   await js(`(()=>{const bytes=Uint8Array.from(atob('${Buffer.from(pdf).toString('base64')}'),c=>c.charCodeAt(0));const d=new DataTransfer();d.items.add(new File([bytes],'test.pdf',{type:'application/pdf'}));const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await until(async () => (await text()).includes('Review extracted values'), 'PDF text extraction', 30000);
   assert.equal(await js(`document.querySelector('input[aria-label="Observation value"]').value`), '13.2');
   await click('View source line 1');
   assert.ok(await js(`!!document.querySelector('[aria-label="Highlighted source region"]')`));
-  await click('Save reviewed report'); await click('Notes');
+  await click('Save reviewed report');
   passed('PDF text layer preserves actual page coordinates without OCR');
-  await click('Explore care'); await click('10:00 AM');
+  await click('Explore care');
+  await screenshot('preview-directory-desktop');
+  await pointer(`document.querySelector('.directory-doctor')`); await click('10:00 AM');
+  await screenshot('preview-assistant-booking-desktop');
+  await click('Book Appointment');
   assert.match(await text(), /no real slot is held/);
   await click('Not now');
   assert.ok(!(await text()).includes('DEMO-001'));
-  await click('10:00 AM'); await click('Confirm preview appointment');
+  await click('Book Appointment'); await click('Confirm preview appointment');
   assert.match(await text(), /No database booking/);
   await click('Open doctor preview');
   await fill('preview-question-doctor', 'Any blood thinners?');
   await click('Send question');
-  async function previewRole(role) { await js(`document.querySelector('[aria-label="Open profile menu"]').click()`); await click(role); }
+  async function previewRole(role) { await js(`document.querySelector('[aria-label="Open profile menu"]').click()`); await pointer(`Array.from(document.querySelectorAll('[role="dialog"] button')).find(e=>e.textContent.trim()===${JSON.stringify(role)})`); }
   await previewRole('Patient');
   await fill('preview-answer-doctor', 'None reported');
   await until(() => js(`!document.querySelector('button[aria-label="Send clarification answer"]').disabled`), 'preview answer ready');
@@ -169,15 +290,45 @@ try {
   await previewRole('Doctor'); assert.match(await text(), /Original patient answer: None reported/);
   await screenshot('preview-doctor-desktop');
   await previewRole('Patient');
-  await click('Trace');
+  await click('Demo tools');
   await js(`(()=>{const e=document.getElementById('preview-scenario');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'emergency');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await until(async () => (await text()).includes('Seek emergency'), 'red emergency screen');
   assert.equal(await js(`document.querySelectorAll('nav,[role="dialog"]').length`), 0);
   assert.ok(await js(`document.querySelector('.sehat-preview').className.includes('!bg-red-700')`));
   await click('Reset synthetic scenario');
+  assert.ok(await js(`!!document.querySelector('.assistant-welcome')`));
+  await pointer(`document.getElementById('patient-tab')`);
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
-  await screenshot('preview-chat-mobile');
+  await js('window.scrollTo(0,0)'); await screenshot('preview-home-mobile');
+  await click('Appointment'); await js('window.scrollTo(0,0)'); await screenshot('preview-directory-mobile');
+  assert.equal(await js(`getComputedStyle(document.querySelector('[aria-label="Search doctors"]')).backgroundColor`), 'rgba(0, 0, 0, 0)');
+  await pointer(`document.querySelector('[aria-label="Filter doctors"]')`);
+  await js(`(()=>{const e=document.querySelector('[aria-label="Filter by specialty"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'Oncology');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  assert.equal(await js(`document.querySelectorAll('.directory-doctor').length`), 1);
+  await js(`(()=>{const e=document.querySelector('[aria-label="Filter by specialty"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'All Specialties');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await pointer(`document.querySelector('[aria-label="Filter doctors"]')`);
+  await pointer(`document.querySelector('[aria-label="Search doctors"]')`);
+  await cdp('Input.insertText', { text: 'Maxwell' });
+  assert.equal(await js(`document.querySelectorAll('.directory-doctor').length`), 1);
+  await pointer(`document.querySelector('.directory-doctor')`); await click('10:00 AM');
+  await js('window.scrollTo(0,0)'); await screenshot('preview-assistant-mobile');
+  assert.equal(await js(`getComputedStyle(document.querySelector('[aria-label="Your answer"]')).borderTopWidth`), '0px');
+  await pointer(`document.querySelector('[aria-label="Start voice input"]')`);
+  assert.match(await text(), /Browser speech may use external processing/);
+  await pointer(`document.querySelector('[aria-label="Switch to text chat"]')`);
+  assert.ok(!await js(`!!document.querySelector('.voice-screen')`));
+  for (const width of [344,430]) {
+    await cdp('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: true });
+    await js('window.scrollTo(0,0)'); await screenshot(`preview-assistant-${width}`);
+    assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
+    await pointer(`document.getElementById('patient-tab')`);
+    await js('window.scrollTo(0,0)'); await screenshot(`preview-home-${width}`);
+    await click('Appointment'); await js('window.scrollTo(0,0)'); await screenshot(`preview-directory-${width}`);
+    assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
+    await pointer(`document.querySelector('.directory-doctor')`); await click('10:00 AM');
+  }
+  passed('Reference layouts at 344/390/430px, directory search/filter and voice-to-keyboard fallback');
   passed('Redesigned fixture chat, provenance, confirm dialog, doctor exchange, emergency and mobile layout');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: base + '/?live=1' });

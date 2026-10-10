@@ -22,6 +22,11 @@ export const initialFields: EvidenceField[] = [
 export const doctors = [
   { id: 'roy', name: 'Dr. Ananya Roy', initials: 'AR', specialty: 'General medicine', location: 'Guwahati', languages: 'Assamese · English', fee: 500, times: ['10:00 AM', '11:30 AM', '3:00 PM'] },
   { id: 'hoque', name: 'Dr. Imran Hoque', initials: 'IH', specialty: 'General medicine', location: 'Dhubri', languages: 'Assamese · Hindi · English', fee: 350, times: ['10:30 AM', '2:00 PM', '4:00 PM'] },
+  { id: 'adams', name: 'Dr. Mariana Adams', initials: 'MA', specialty: 'Neurology', location: 'Guwahati', languages: 'English', fee: 500, times: ['11:00 AM', '3:00 PM'] },
+  { id: 'james', name: 'Dr. Peter James', initials: 'PJ', specialty: 'General medicine', location: 'Guwahati', languages: 'English', fee: 450, times: ['9:00 AM', '2:00 PM'] },
+  { id: 'maxwell', name: 'Dr. Maxwell Nil', initials: 'MN', specialty: 'Radiology', location: 'Dhubri', languages: 'Hindi · English', fee: 500, times: ['10:00 AM'] },
+  { id: 'wills', name: 'Dr. Kate Wills', initials: 'KW', specialty: 'Oncology', location: 'Guwahati', languages: 'English', fee: 600, times: ['11:30 AM', '4:00 PM'] },
+  { id: 'isaac', name: 'Dr. Isaac James', initials: 'IJ', specialty: 'General medicine', location: 'Dhubri', languages: 'English', fee: 400, times: ['2:30 PM'] },
 ];
 export const greetings: Record<PreviewLanguage, string> = {
   EN: 'Hello! Let’s get you ready for a consultation.',

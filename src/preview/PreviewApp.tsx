@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronRight, ClipboardList, FileText, HeartPulse, Languages, MapPin, MessageCircle, Mic, Paperclip, Send, ShieldCheck, Terminal, Video, AlertTriangle, CalendarDays, User, CircleHelp, Home } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronRight, ClipboardList, FileText, Languages, MessageCircle, Mic, Paperclip, Send, Settings, ShieldCheck, Terminal, Video, AlertTriangle, CalendarDays, CircleHelp, Home } from 'lucide-react';
 import { Button } from '../components/ui/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog.tsx';
 import { cn } from '../lib/utils.ts';
@@ -8,6 +8,8 @@ import { answerLabels, detailsPrompt, structuredAnswer, type AnswerAction } from
 import { ReportUpload, SourcePage } from './reports/ReportUpload.tsx';
 import type { Observation, Report } from './reports/parser.ts';
 import { VoiceScreen } from './VoiceScreen.tsx';
+import { AppointmentCard, Avatar, DoctorDirectory, PatientHome, type PreviewDoctor } from './PatientScreens.tsx';
+import { AssistantOrb } from './AssistantOrb.tsx';
 
 type Booking = { doctor: typeof doctors[number]; time: string };
 
@@ -25,9 +27,12 @@ export function PreviewApp() {
   const [role, setRole] = useState<'patient' | 'doctor'>('patient');
   const [language, setLanguage] = useState<PreviewLanguage>('EN');
   const [step, setStep] = useState<'chat' | 'summary' | 'care'>('chat');
-  const [home, setHome] = useState(true);
+  const [home, setHome] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [profile, setProfile] = useState<PreviewDoctor | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [chatAppointment, setChatAppointment] = useState<Booking | null>(null);
   const [detailsFor, setDetailsFor] = useState<{ key: FieldId; choiceSourceId: string } | null>(null);
   const [index, setIndex] = useState(0);
   const [lines, setLines] = useState<ChatLine[]>([{ id: 'greeting', role: 'assistant', text: greetings.EN + ' ' + questions[0].text, language: 'EN' }]);
@@ -53,7 +58,13 @@ export function PreviewApp() {
   const end = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [lines, step]);
+  const assistantActive = !home && step === 'chat';
+  const welcome = lines.length === 1 && !chatAppointment && !editing;
+  function selectTab(tab: 'assistant' | 'patient') {
+    setHome(tab === 'patient');
+    if (tab === 'assistant') setStep('chat');
+  }
+  useEffect(() => { if (lines.length > 1 || chatAppointment) end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [lines, step, chatAppointment]);
   function event(text: string) { setEvents(e => [...e.slice(-19), `${new Date().toLocaleTimeString()}  fixture.${text}`]); }
   function addLine(role: ChatLine['role'], text: string, lang: PreviewLanguage = 'EN') {
     const id = crypto.randomUUID();
@@ -62,8 +73,8 @@ export function PreviewApp() {
   function reset(next: Scenario = 'routine') {
 
     setScenario(next); setEmergency(next === 'emergency'); setStep('chat'); setIndex(0); setInput('');
-    setFields(initialFields.map(f => ({ ...f }))); setAsked(['concern']); setEditing(null); setDetailsFor(null); setReport(null);  setReportSource(null); setHome(true); setVoiceOpen(false);
-    setBooking(null); setProposal(null); setBookingError(''); setClarification(null); setEvents([]);
+    setFields(initialFields.map(f => ({ ...f }))); setAsked(['concern']); setEditing(null); setDetailsFor(null); setReport(null);  setReportSource(null); setHome(false); setVoiceOpen(false);
+    setBooking(null); setProposal(null); setBookingError(''); setClarification(null); setEvents([]); setChatAppointment(null); setProfile(null); setReportOpen(false);
     setLines([{ id: 'greeting', role: 'assistant', text: greetings[language] + ' ' + questions[0].text, language: 'EN' }]);
   }
   function changeLanguage(next: PreviewLanguage) {
@@ -130,45 +141,42 @@ export function PreviewApp() {
     </div>
   </div>;
 
-  return <div className="sehat-preview">
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <div className="flex items-center gap-2.5"><span className="flex size-9 items-center justify-center rounded-xl bg-green-700 text-white"><HeartPulse size={21} /></span><div><span className="text-lg font-bold tracking-tight">sehat<span className="ml-1 font-normal text-green-700">OS</span></span><p className="text-[11px] text-slate-400">Care, with clarity.</p></div></div>
-        <Button variant="ghost" size="icon" aria-label="Open profile menu" onClick={() => setMenuOpen(true)}><User /></Button>
-        {role === 'patient' && <div className="flex items-center gap-1" role="group" aria-label="Patient language"><Languages size={16} className="mr-1 text-slate-400" />{(['EN', 'HI', 'AS'] as PreviewLanguage[]).map(l => <Button key={l} size="sm" variant="ghost" aria-pressed={language === l} className={cn('!px-3', language === l && '!bg-green-50 !text-green-800')} onClick={() => changeLanguage(l)}>{l}</Button>)}</div>}
-      </div>
-    </header>
-    <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-2.5 text-xs text-slate-500"><span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-green-500" /><strong>UI preview</strong> · synthetic fixtures, no AI calls or real bookings</span><a href="/?live=1" className="font-medium text-green-700 underline underline-offset-4">Open existing live workflow ↗</a></div>
+  return <div className={cn('sehat-preview', role === 'patient' ? 'patient-preview' : 'clinician-preview', role === 'patient' && !home && step === 'care' && 'care-view', role === 'patient' && !home && step === 'chat' && 'assistant-view')}>
+    {role === 'patient' && <div className="primary-tabs" role="tablist" aria-label="Main views">{(['assistant', 'patient'] as const).map(tab => {
+      const active = tab === 'assistant' ? assistantActive : !assistantActive;
+      return <button key={tab} id={`${tab}-tab`} role="tab" aria-selected={active} aria-controls="patient-view-panel" tabIndex={active ? 0 : -1} onClick={() => selectTab(tab)} onKeyDown={e => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+        e.preventDefault();
+        const next = e.key === 'Home' ? 'assistant' : e.key === 'End' ? 'patient' : tab === 'assistant' ? 'patient' : 'assistant';
+        selectTab(next); document.getElementById(`${next}-tab`)?.focus();
+      }}>{tab === 'assistant' ? <MessageCircle size={16} /> : <Home size={16} />}{tab === 'assistant' ? 'AI assistant' : 'Patient'}</button>;
+    })}</div>}
+    {(role === 'doctor' || !home) && <header className="screen-header">{role === 'patient' && assistantActive ? <span className="header-spacer" aria-hidden="true" /> : <button className="round-control" aria-label="Back to home" onClick={() => { setRole('patient'); setHome(true); }}><ArrowLeft size={20} /></button>}<h1>{role === 'doctor' ? 'Clinician workspace' : step === 'chat' ? 'SEHAT OS' : step === 'care' ? 'Make an appointment' : 'Your consultation notes'}</h1><button className="round-control" aria-label="Open profile menu" onClick={() => setMenuOpen(true)}><Settings size={19} /></button></header>}
 
-    {role === 'patient' ? <main className="patient-shell mx-auto max-w-[430px] px-4 pb-8 pt-4">
-      {home && <div className="home-screen space-y-5"><div><p>Welcome to SEHAT OS</p><h1 className="mt-2 text-3xl font-semibold">Hello, how are you?</h1><p className="mt-2">Let’s get ready for your consultation.</p></div><Card><h2 className="text-xl font-semibold">Tell us what’s wrong</h2><p className="mt-2">Speak or type. One question at a time.</p><button className="home-orb" aria-label="Open voice screen" onClick={() => { setHome(false); setVoiceOpen(true); }}><Mic size={34} /></button><Button className="w-full" onClick={() => { setHome(false); setStep('chat'); }}>Start a conversation <ArrowRight /></Button></Card><div className="grid grid-cols-2 gap-3"><Card className="!p-4"><FileText /><h2 className="my-3 font-semibold">Add a report</h2><Button variant="outline" onClick={() => setReportOpen(true)}>Add report</Button></Card><Card className="!p-4"><CalendarDays /><h2 className="my-3 font-semibold">My appointment</h2><Button variant="outline" onClick={() => { setHome(false); setStep('care'); }}>View care</Button></Card></div></div>}
+    {role === 'patient' ? <main className="patient-shell" id="patient-view-panel" role="tabpanel" aria-labelledby={assistantActive ? 'assistant-tab' : 'patient-tab'}>
+      {home && <PatientHome onChat={() => { setHome(false); setStep('chat'); }} onCare={() => { setHome(false); setStep('care'); }} onNotes={() => { setHome(false); setStep('summary'); }} onProfile={() => setMenuOpen(true)} onNotifications={() => setNotificationsOpen(true)} onDoctor={setProfile} />}
       {!home && step === 'chat' && <>
-        <div className="mb-5 text-center"><h1 className="text-2xl font-semibold tracking-tight">Let’s prepare for your visit.</h1><p className="mt-1 text-sm text-slate-500">One question at a time. At your pace.</p></div>
         {language !== 'EN' && <p className="mb-3 rounded-xl bg-green-50 px-4 py-3 text-xs text-green-800">{language === 'AS' ? 'অসমীয়া' : 'हिन्दी'} input selected. Scripted questions remain in English. Translation unavailable; greeting copy needs native-speaker review.</p>}
-        <Card className="!p-0 overflow-hidden">
-          <div className="chat-scroll flex max-h-[48dvh] min-h-64 flex-col gap-5 overflow-y-auto p-5 sm:p-6" aria-live="polite">{lines.map(line => <div key={line.id} className={cn('message-enter flex gap-3', line.role === 'patient' && 'justify-end')}>
-            {line.role === 'assistant' && <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700"><HeartPulse size={16} /></span>}
-            <div className={cn('max-w-[85%] rounded-2xl px-4 py-3', line.role === 'patient' ? 'bg-green-700 text-white' : 'bg-slate-50 text-slate-700')}><p lang={line.role === 'patient' ? { EN: 'en', HI: 'hi', AS: 'as' }[line.language] : 'en'} className="evidence-line text-sm">{line.text}</p><span className={cn('mt-2 block text-[10px]', line.role === 'patient' ? 'text-green-100' : 'text-slate-400')}>{line.role === 'patient' ? 'You · original message' : 'Scripted assistant · UI fixture'}</span></div>
-          </div>)}<div ref={end} /></div>
-          <div className="border-t border-slate-100 bg-white p-4 sm:p-5">
+        <section className={cn('assistant-conversation', welcome && 'assistant-welcome')}>
+          <div className="chat-scroll" aria-live="polite">{welcome ? <div className="assistant-welcome-content"><AssistantOrb /><h2>How are you feeling?</h2><p>A little space to share what’s on your mind.</p></div> : lines.map(line => <div key={line.id} className={cn('message-enter chat-message', line.role)}>
+            {line.role === 'assistant' && <span className="assistant-ring" aria-hidden="true" />}
+            <div className="message-bubble"><p lang={line.role === 'patient' ? { EN: 'en', HI: 'hi', AS: 'as' }[line.language] : 'en'} className="evidence-line">{line.text}</p><small>{line.role === 'patient' ? 'You · original message' : 'Scripted assistant · UI fixture'}</small></div>
+            {line.role === 'patient' && <Avatar patient />}
+          </div>)}{chatAppointment && scenario !== 'no-slots' && <div className="chat-message assistant"><span className="assistant-ring" /><div className="message-bubble"><p>Your selected example appointment. Review the details before confirming.</p><AppointmentCard doctor={chatAppointment.doctor} time={chatAppointment.time} onBook={() => { setProposal(chatAppointment); setBookingError(''); }} /></div></div>}<div ref={end} /></div>
+          <div className="chat-composer-area">
             {index < questions.length || editing ? <>
-              <div className="mb-4 flex flex-wrap gap-2">{detailsFor ? <p>{detailsPrompt[language]}</p> : structuredKey ? <>{answerLabels[language][structuredKey].slice(0, 3).map((c, i) => <Button key={i} variant="outline" className="!rounded-full" onClick={() => answer(c, (['yes', 'no', 'unsure'] as const)[i])}>{c}</Button>)}<button className="skip-answer" onClick={() => answer(answerLabels[language][structuredKey][3], 'skip')}>{answerLabels[language][structuredKey][3]}</button></> : (editing ? questions.find(q => q.key === editing)!.chips : questions[index].chips).map(c => <Button key={c} variant="outline" className="!rounded-full" onClick={() => answer(c)}>{c}</Button>)}</div>
-              <form onSubmit={e => { e.preventDefault(); answer(input); }} className="flex items-center gap-2"><Button variant="ghost" size="icon" aria-label="Attach a text report" onClick={() => setReportOpen(true)}><Paperclip /></Button><input ref={inputRef} value={input} maxLength={4000} onChange={e => setInput(e.target.value)} aria-label="Your answer" placeholder="Type your answer…" className="!min-w-0 !flex-1 !rounded-xl !border-slate-200 !bg-slate-50 !px-3 !py-3 text-sm" /><Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send answer"><Send /></Button></form>
-              <div className="mt-4 flex items-center justify-center gap-3"><Button onClick={() => setVoiceOpen(true)} aria-label="Start voice input" className="!size-16 !rounded-full !p-0 shadow-sm [&_svg]:!size-6"><Mic /></Button><div><strong className="block">Prefer to speak?</strong>Tap the microphone. Review before sending.</div></div>
-              <p className="mt-3 text-center text-[10px] text-slate-400">Browser speech may be processed externally. Assamese recognition is not guaranteed.</p>
+              {!welcome && <div className="answer-choices">{detailsFor ? <p>{detailsPrompt[language]}</p> : structuredKey ? <>{answerLabels[language][structuredKey].slice(0, 3).map((c, i) => <Button key={i} variant="outline" onClick={() => answer(c, (['yes', 'no', 'unsure'] as const)[i])}>{c}</Button>)}<button className="skip-answer" onClick={() => answer(answerLabels[language][structuredKey][3], 'skip')}>{answerLabels[language][structuredKey][3]}</button></> : (editing ? questions.find(q => q.key === editing)!.chips : questions[index].chips).map(c => <Button key={c} variant="outline" onClick={() => answer(c)}>{c}</Button>)}</div>}
+              <form onSubmit={e => { e.preventDefault(); answer(input); }} className="chat-composer"><div className="composer-input"><input ref={inputRef} value={input} maxLength={4000} onChange={e => setInput(e.target.value)} aria-label="Your answer" placeholder={welcome ? 'Tell me how you’re feeling…' : 'Your answer…'} /><small>{input.length}/4000</small></div><div className="composer-actions"><Button variant="ghost" aria-label="Attach a text report" onClick={() => setReportOpen(true)}><Paperclip />Attach file</Button><Button variant="ghost" onClick={() => setStep('summary')}><ClipboardList />Notes</Button><Button variant="ghost" size="icon" aria-label="Start voice input" onClick={() => setVoiceOpen(true)}><Mic /></Button><Button type="submit" variant="ghost" size="icon" disabled={!input.trim()} aria-label="Send answer"><Send /></Button></div></form>
 
             </> : <Button className="w-full" onClick={() => setStep('summary')}>Review my notes <ArrowRight /></Button>}
           </div>
-        </Card>
-        <p className="mt-4 text-center text-xs text-slate-400">Not a diagnosis. If you think this is an emergency, seek help now.</p>
+        </section>
+        <p className="chat-safety">Not a diagnosis. If you think this is an emergency, seek help now.</p>
       </>}
       {!home && step === 'summary' && <>{summary()}<div className="notes-action mt-6 flex gap-3"><Button variant="outline" onClick={() => setStep('chat')}><ArrowLeft /> Chat</Button><Button className="flex-1" onClick={() => setStep('care')}>Explore care <ArrowRight /></Button></div><p className="mt-3 text-center">Next screen uses a pre-screened synthetic route, not a decision about your answers.</p></>}
       {!home && step === 'care' && <div className="space-y-5">
-        <div><h1 className="text-2xl font-semibold tracking-tight">The next step, made clearer.</h1><p className="mt-1 text-sm text-slate-500">Review your options. Nothing is booked without you.</p></div>
-        <Card className="!border-green-200 !bg-green-50"><div className="flex gap-4"><div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white text-green-700"><Video /></div><div><span className="text-xs font-semibold uppercase tracking-wider text-green-700">Pre-screened routine fixture</span><h2 className="mt-1 text-lg font-semibold text-green-900">Video consultation</h2><p className="mt-2 text-sm text-green-800">This mock scenario has completed screening. A clinician must assess suitability. Your chat answers do not determine this fixture route.</p></div></div></Card>
         {booking ? <Card className="text-center"><CheckCircle2 className="mx-auto mb-3 text-green-600" size={40} /><h2 className="text-xl font-semibold">Preview appointment selected</h2><p className="mt-2 text-slate-600">{booking.doctor.name} · Tomorrow, {booking.time} IST</p><p className="mt-1 text-sm text-slate-500">Video · ₹{booking.doctor.fee}</p><p className="my-4 rounded-xl bg-green-50 p-3 text-xs text-green-800">Synthetic receipt DEMO-001. No database booking or patient confirmation record was created.</p><Button variant="outline" onClick={() => setRole('doctor')}>Open doctor preview <ArrowRight /></Button></Card> : <>
-          <div className="flex items-center justify-between"><h2 className="text-base font-semibold">Available doctors</h2><span className="text-xs text-slate-400">Fictional · example times</span></div>
-          {scenario === 'no-slots' ? <Card><CalendarDays className="mb-3 text-slate-400" /><h3 className="font-semibold">No appointments in this fixture</h3><p className="mt-2 text-sm text-slate-500">Nothing has been booked. Contact a clinic directly or try again later.</p><Button variant="outline" className="mt-4" onClick={() => reset()}>Reset to routine fixture</Button></Card> : doctors.map(d => <Card key={d.id}><div className="flex gap-4"><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 font-semibold text-slate-600">{d.initials}</span><div className="flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{d.name}</h3><span className="text-sm font-semibold text-slate-600">₹{d.fee}</span></div><p className="text-sm text-slate-500">{d.specialty}</p><p className="mt-1 flex items-center gap-1 text-xs text-slate-400"><MapPin size={12} />{d.location} · {d.languages}</p></div></div><div className="mt-4 flex flex-wrap gap-2">{d.times.map(time => <Button variant="outline" size="sm" key={time} className="!text-xs hover:!border-green-500 hover:!text-green-700" onClick={() => { setProposal({ doctor: d, time }); setBookingError(''); }}>{time}</Button>)}</div></Card>)}
+          <DoctorDirectory noSlots={scenario === 'no-slots'} onDoctor={setProfile} onReset={() => reset()} />
         </>}
         <Button variant="ghost" onClick={() => setStep('summary')}><ArrowLeft /> Review notes</Button>
       </div>}
@@ -183,14 +191,15 @@ export function PreviewApp() {
       </div>
     </main>}
 
-    <footer className="preview-footer"><Button variant="ghost" onClick={() => setTraceOpen(true)}><Terminal /> Trace</Button><p>Synthetic data only. Not a diagnostic tool.</p></footer>
-    {role === 'patient' && <nav className="bottom-tabs" aria-label="Patient navigation">{([['chat', 'Talk', MessageCircle], ['summary', 'Notes', ClipboardList], ['care', 'Care', HeartPulse]] as const).map(([s, label, Icon]) => <button key={s} aria-current={!home && step === s ? 'page' : undefined} onClick={() => { setHome(false); setStep(s); }}><Icon size={22} /><span>{label}</span></button>)}</nav>}
-    <Dialog open={menuOpen} onOpenChange={setMenuOpen}><DialogContent className="bottom-sheet"><DialogTitle>Profile & views</DialogTitle><DialogDescription>Synthetic preview workspace</DialogDescription><Button onClick={() => { setRole('patient'); setMenuOpen(false); }}>Patient</Button><Button variant="outline" onClick={() => { setRole('doctor'); setMenuOpen(false); }}>Doctor</Button><Button variant="ghost" onClick={() => { setHome(true); setRole('patient'); setMenuOpen(false); }}><Home /> Home</Button></DialogContent></Dialog>
+    <footer className="preview-footer"><p>Synthetic preview · no AI calls or real bookings.<br />Not a diagnostic tool.</p><button onClick={() => setTraceOpen(true)}>Demo tools</button></footer>
+    <Dialog open={menuOpen} onOpenChange={setMenuOpen}><DialogContent className="bottom-sheet"><DialogTitle>Profile & views</DialogTitle><DialogDescription>Synthetic preview workspace</DialogDescription><div className="flex items-center gap-2" role="group" aria-label="Patient language"><Languages size={18} />{(['EN', 'HI', 'AS'] as PreviewLanguage[]).map(l => <Button key={l} variant="outline" aria-pressed={language === l} onClick={() => changeLanguage(l)}>{l}</Button>)}</div><Button onClick={() => { setRole('patient'); setMenuOpen(false); }}>Patient</Button><Button variant="outline" onClick={() => { setRole('doctor'); setMenuOpen(false); }}>Doctor</Button><Button variant="outline" onClick={() => { setRole('patient'); setHome(false); setStep('summary'); setMenuOpen(false); }}><ClipboardList />My notes</Button><Button variant="outline" onClick={() => { setRole('patient'); setHome(false); setStep('care'); setMenuOpen(false); }}><CalendarDays />My appointments</Button><Button variant="outline" onClick={() => { setMenuOpen(false); setReportOpen(true); }}><FileText />Add report</Button><Button variant="ghost" onClick={() => { setHome(true); setRole('patient'); setMenuOpen(false); }}><Home />Home</Button><a href="/?live=1">Open existing live workflow</a></DialogContent></Dialog>
+    <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}><DialogContent><DialogTitle>Notifications</DialogTitle><DialogDescription>Synthetic preview updates</DialogDescription><p>{clarification && !clarification.answer ? 'A doctor has sent you a question. Open your notes to reply.' : booking ? `Preview appointment selected with ${booking.doctor.name}. No real booking was made.` : 'You’re all caught up. No appointment or doctor messages yet.'}</p><Button onClick={() => { setNotificationsOpen(false); setHome(false); setStep('summary'); }}>View my notes</Button></DialogContent></Dialog>
+    <Dialog open={Boolean(profile)} onOpenChange={open => { if (!open) setProfile(null); }}><DialogContent className="bottom-sheet"><DialogTitle>Doctor profile</DialogTitle><DialogDescription>Fictional profile · example availability only</DialogDescription>{profile && <><div className="profile-doctor"><Avatar index={doctors.indexOf(profile)} /><div><h2>{profile.name}</h2><p>{profile.specialty}</p></div></div><p>{profile.location} · {profile.languages}</p><p>Example video consultation · ₹{profile.fee}</p><p>This preview uses a pre-screened synthetic route. Your answers do not determine suitability or availability.</p><h3>Example times · tomorrow, IST</h3>{scenario === 'no-slots' ? <p>No appointments in this fixture.</p> : <div className="profile-times">{profile.times.map(time => <Button variant="outline" key={time} onClick={() => { setChatAppointment({ doctor: profile, time }); setProfile(null); setHome(false); setStep('chat'); }}>{time}</Button>)}</div>}</>}</DialogContent></Dialog>
     <Dialog open={traceOpen} onOpenChange={setTraceOpen}><DialogContent className="bottom-sheet"><DialogTitle>Preview scenarios & agent trace</DialogTitle><DialogDescription>Fixture events only. No SDK execution is claimed.</DialogDescription><label htmlFor="preview-scenario">Synthetic scenario (resets preview)</label><select id="preview-scenario" value={scenario} onChange={e => { reset(e.target.value as Scenario); setTraceOpen(false); }}><option value="routine">Routine conversation</option><option value="emergency">Emergency interruption</option><option value="no-slots">No available slots</option><option value="conflict">Booking conflict</option><option value="expired">Expired proposal</option></select><div className="trace-panel"><p>SIMULATED UI EVENTS — no Cline SDK execution</p>{events.length ? events.map((e, i) => <p key={i}>{e}</p>) : <p>No fixture interactions yet.</p>}<a href="/?live=1">Open live workflow for actual traces</a></div></DialogContent></Dialog>
     <Dialog open={Boolean(proposal)} onOpenChange={open => { if (!open) setProposal(null); }}><DialogContent className="bottom-sheet"><DialogTitle className="pr-8 text-xl font-semibold">Review your appointment</DialogTitle><DialogDescription className="text-sm text-slate-500">Explicit approval is required. This is a synthetic UI preview; no real slot is held.</DialogDescription>{proposal && <><div className="space-y-3 rounded-2xl bg-slate-50 p-4"><p className="font-semibold">{proposal.doctor.name}</p><p className="flex items-center gap-2 text-sm text-slate-600"><CalendarDays size={16} />Tomorrow · {proposal.time} IST (UTC+05:30)</p><p className="flex items-center gap-2 text-sm text-slate-600"><Video size={16} />Video consultation</p><p className="text-sm text-slate-600">Fee <strong className="float-right">₹{proposal.doctor.fee}</strong></p></div>{bookingError && <p role="alert" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{bookingError}</p>}<Button onClick={() => {
       if (scenario === 'conflict') { setBookingError('Synthetic conflict: this example slot was taken. Nothing is booked. Close this dialog and reset the scenario to try again.'); return; }
       if (scenario === 'expired') { setBookingError('Synthetic expiry: this proposal has expired. Nothing is booked. Close this dialog and select another scenario.'); return; }
-      setBooking(proposal); setProposal(null); event('confirm_booking  fixture receipt; no server write');
+      setBooking(proposal); setProposal(null); setHome(false); setStep('care'); event('confirm_booking  fixture receipt; no server write');
     }}>Confirm preview appointment <Check /></Button><Button variant="outline" onClick={() => setProposal(null)}>Not now</Button><p className="text-center text-[10px] text-slate-400">Live bookings must use the server’s scoped confirmation record.</p></>}</DialogContent></Dialog>
     <Dialog open={Boolean(source)} onOpenChange={open => { if (!open) setSource(null); }}><DialogContent><DialogTitle className="pr-7 text-lg font-semibold">{source?.title}</DialogTitle><DialogDescription className="text-sm text-slate-500">Original synthetic evidence. Unverified; not medical interpretation.</DialogDescription><pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm">{source?.text}</pre></DialogContent></Dialog>
     <ReportUpload open={reportOpen} onClose={() => setReportOpen(false)} onSave={value => { setReport(value); setReportOpen(false); addLine('patient', 'Attached a reviewed synthetic report.', language); event('document_source  original retained; unverified'); if (index === questions.length - 1 && !editing) advance(); }} />
