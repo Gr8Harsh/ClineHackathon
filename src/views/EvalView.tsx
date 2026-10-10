@@ -4,7 +4,7 @@ import { api } from '../api.ts';
 
 export function EvalView() {
   const [report, setReport] = useState<EvalReport | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
@@ -14,15 +14,22 @@ export function EvalView() {
     finally { setBusy(false); }
   }
 
-  useEffect(() => { api.evalReport().then(setReport).catch(() => {}); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    api.evalReport().then(r => { if (!cancelled) setReport(r); })
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setBusy(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <>
       <section className="card">
         <header>Evaluation scoreboard <span className="sub">deterministic rule engine · measured, not claimed</span></header>
         <div className="body">
-          {error && <div className="notice" style={{ marginBottom: 12 }}>{error}</div>}
-          {!report && <p className="empty">No report yet. Run the evaluation.</p>}
+          <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Loading results…' : 'Run evaluation'}</button>
+          {error && <div className="notice" role="alert" style={{ marginTop: 12 }}>{error} {report && 'Previous results remain below; they are not a fresh run.'}</div>}
+          {!report && <p className="empty" role="status">{busy ? 'Fetching measured results…' : 'No report available. Run the evaluation to retry.'}</p>}
           {report && (
             <>
               <div className="row" style={{ marginBottom: 12 }}>
@@ -32,9 +39,8 @@ export function EvalView() {
                   <div className="empty">rules {report.ruleVersion} · generated {new Date(report.generatedAt).toLocaleString()}</div>
                 </div>
                 <div style={{ flex: 1 }} />
-                <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running…' : 'Run evaluation'}</button>
               </div>
-              <table className="eval-table">
+              <div className="table-scroll"><table className="eval-table">
                 <thead><tr><th>Case</th><th>Expected</th><th>Actual</th><th>Result</th></tr></thead>
                 <tbody>
                   {report.results.map(r => (
@@ -46,11 +52,11 @@ export function EvalView() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </>
           )}
           <p className="empty" style={{ marginTop: 14 }}>
-            These 20 cases exercise the deterministic routing and red-flag logic only. They do not validate
+            These scripted cases exercise the deterministic routing and red-flag logic only. They do not validate
             language understanding, translation, or clinical accuracy, and they are not a measure of medical safety.
           </p>
         </div>
