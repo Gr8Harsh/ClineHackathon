@@ -10,7 +10,7 @@ test('real HTTP intake, provenance, screening, documents and clarification round
   const dir = mkdtempSync(join(tmpdir(), 'sehat-api-'));
   process.env.SEHAT_DB = join(dir, 'api.db');
   process.env.SEHAT_TEST = '1';
-  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.CLINE_API_KEY;
   const { app } = await import('../server/index.ts');
   const { getDb } = await import('../server/db.ts');
   const { RED_FLAG_RULES } = await import('../server/rules/redFlags.ts');

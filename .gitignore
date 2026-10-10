@@ -10,7 +10,8 @@ dist/
 *.sqlite3
 *.pem
 *.key
-data/
+data/*
+!data/selfcare.json
 *.log
 test-results/
 .DS_Store

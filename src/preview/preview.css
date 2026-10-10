@@ -88,6 +88,23 @@ body:has(.patient-preview) { background: #dce0d8; }
 .assistant-ring { width: 27px; height: 27px; border-radius: 50%; background: conic-gradient(#425e38,#b8d3a1,#649777,#364e2f,#91b779,#425e38); padding: 4px; flex-shrink: 0; display: inline-block; }
 .assistant-ring::after { content: ''; display: block; width: 100%; height: 100%; border-radius: 50%; background: white; }
 .assistant-conversation { display: flex; flex-direction: column; min-height: calc(100dvh - 260px); }
+.main-demo-notice { font-size: 12px; color: #64705b; margin: 0 0 12px; }
+.relief-stack { display: grid; gap: 16px; margin-top: 20px; }
+.relief-card { border: 1px solid #dce3d6; border-radius: 20px; padding: 20px; background: #fff; overflow-wrap: anywhere; }
+.relief-card h2 { font-size: 19px; font-weight: 600; margin-bottom: 10px; }
+.relief-card p { font-size: 13px; margin: 8px 0; }
+.relief-card input { border: 1px solid #dce3d6; border-radius: 10px; padding: 10px; width: 100%; margin: 8px 0; }
+.relief-card button { padding: 8px 12px; margin: 5px; border-radius: 10px; border: 1px solid #c5d1ba; }
+.relief-card button:disabled { opacity: .5; cursor: not-allowed; }
+.relief-review { background: #f4f5e9; padding: 12px; border-radius: 10px; }
+.intake-field { padding: 12px 0; border-bottom: 1px solid #e6ebdf; }
+.fixture-badge { background: #fff5d8; color: #66511c !important; padding: 2px 6px; border-radius: 5px; }
+.typing-dots { display: flex; gap: 5px; padding: 16px !important; }
+.typing-dots > span:not(.sr-only) { width: 6px; height: 6px; border-radius: 50%; background: #64745a; animation: typing-pulse 1s infinite alternate; }
+.typing-dots > span:nth-child(2) { animation-delay: .2s; }
+.typing-dots > span:nth-child(3) { animation-delay: .4s; }
+@keyframes typing-pulse { to { opacity: .3; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .typing-dots > span { animation: none !important; } }
 .assistant-welcome .chat-scroll { justify-content: center; }
 .assistant-welcome-content { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px 0 36px; }
 .assistant-orb { width: clamp(180px, 29dvh, 260px); aspect-ratio: 1; position: relative; margin-bottom: 12px; }
@@ -204,3 +221,6 @@ body:has(.patient-preview) { background: #dce0d8; }
 @media (max-width: 360px) { .patient-preview { padding-inline: 14px; } .directory-doctor { gap: 6px; } .directory-doctor .portrait { width: 42px; height: 42px; } .directory-doctor-name strong { font-size: 12px; } .availability { padding-inline: 4px; font-size: 9px; } .consultation-cards h2 { font-size: 16px; } }
 @media (max-height: 500px) { .report-header { padding-top: 14px; padding-bottom: 8px; } .report-header p { max-width: 90%; font-size: 11px; } .voice-orb { width: 80px; height: 80px; } }
 @media (prefers-reduced-motion: reduce) { .sehat-preview *, .preview-dialog { animation: none !important; scroll-behavior: auto !important; } }
+/* Real-data olive shell: compact header controls so the title never wraps on phones. */
+.screen-header .header-language { flex-shrink: 0; max-width: 104px; min-height: 36px; border: 1px solid #dce3d6; border-radius: 18px; background: #f5f6f1; padding: 4px 8px; font-size: 12px; color: #4f5845; }
+.screen-header h1 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

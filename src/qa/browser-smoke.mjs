@@ -21,7 +21,7 @@ const port = Number(process.env.QA_PORT ?? 3017);
 const debugPort = Number(process.env.QA_DEBUG_PORT ?? 9237);
 const base = `http://127.0.0.1:${port}`;
 const env = { ...process.env, PORT: String(port), SEHAT_DB: join(temp, 'demo.db') };
-delete env.ANTHROPIC_API_KEY; delete env.SEHAT_TEST;
+delete env.ANTHROPIC_API_KEY; delete env.CLINE_API_KEY; delete env.SEHAT_TEST;
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], { cwd: root, env, stdio: 'pipe' });
 let serverLog = '';
 server.stderr.on('data', b => { serverLog += b; });
@@ -112,7 +112,7 @@ try {
   }
   await cdp('Runtime.enable'); await cdp('Page.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-  await cdp('Page.navigate', { url: base });
+  await cdp('Page.navigate', { url: base + '/?fixture=1' });
   await until(async () => (await text()).includes('How are you feeling'), 'redesigned preview');
   assert.equal(await js(`document.querySelectorAll('.primary-tabs [role="tab"]').length`), 2);
   assert.equal(await js(`document.querySelector('.primary-tabs [aria-selected="true"]').textContent`), 'AI assistant');
@@ -330,6 +330,45 @@ try {
   }
   passed('Reference layouts at 344/390/430px, directory search/filter and voice-to-keyboard fallback');
   passed('Redesigned fixture chat, provenance, confirm dialog, doctor exchange, emergency and mobile layout');
+  await cdp('Page.navigate', { url: base });
+  await until(() => js(`!!document.querySelector('[aria-label="Your answer"]')`), 'main server assistant');
+  await js(`(()=>{const original=window.fetch;window.__releaseConversation=null;window.fetch=async(...args)=>{if(String(args[0]).endsWith('/messages'))await new Promise(resolve=>window.__releaseConversation=resolve);return original(...args);};})()`);
+  await pointer(`document.querySelector('[aria-label="Your answer"]')`);
+  await cdp('Input.insertText', { text: 'headache' });
+  await pointer(`document.querySelector('[aria-label="Send answer"]')`);
+  await until(() => js(`!!window.__releaseConversation`), 'held conversation response');
+  assert.ok(await js(`Array.from(document.querySelectorAll('.chat-message.patient')).some(e=>e.textContent.includes('headache'))`), 'Patient message renders before response resolves');
+  assert.ok(await js(`!!document.querySelector('[aria-label="Assistant is typing"]')`));
+  assert.equal(await js(`document.querySelector('[aria-label="Your answer"]').disabled`), false);
+  await js(`window.__releaseConversation()`);
+  await until(() => js(`!document.querySelector('[aria-label="Assistant is typing"]')`), 'typing indicator removed');
+  assert.ok((await text()).includes('How long has it been going on?'));
+  assert.ok((await text()).includes('Temporary relief'));
+  assert.ok(!(await text()).includes('Scripted assistant'));
+  assert.ok(!(await text()).includes('Village self-care'));
+  await pointer(`document.querySelector('[aria-label="Your answer"]')`);
+  await cdp('Input.insertText', { text: "I don't know" });
+  await pointer(`document.querySelector('[aria-label="Send answer"]')`);
+  await until(() => js(`!!document.querySelector('[aria-label="Assistant is typing"]')`), 'second request');
+  await js(`window.__releaseConversation()`);
+  await until(async () => (await text()).includes('Where does it hurt most?'), 'next question after unknown');
+  await until(() => js(`!document.querySelector('[aria-label="Assistant is typing"]')`), 'quick choices ready');
+  await click('Forehead');
+  await until(() => js(`!!document.querySelector('[aria-label="Assistant is typing"]')`), 'quick reply typing');
+  assert.ok(await js(`Array.from(document.querySelectorAll('.chat-message.patient')).some(e=>e.textContent.includes('Forehead'))`));
+  await js(`window.__releaseConversation()`);
+  await until(() => js(`!document.querySelector('[aria-label="Assistant is typing"]')`), 'quick reply recorded');
+  await js(`window.fetch=async()=>{throw new Error('Synthetic delayed-network failure')}`);
+  await pointer(`document.querySelector('[aria-label="Your answer"]')`); await cdp('Input.insertText', { text: 'comes and goes' });
+  await pointer(`document.querySelector('[aria-label="Send answer"]')`);
+  await until(async () => (await text()).includes('Tap to retry'), 'failed message retry action');
+  assert.ok(!await js(`!!document.querySelector('[aria-label="Assistant is typing"]')`));
+  assert.ok((await text()).includes('comes and goes'));
+  passed('Failed optimistic message remains visible with retry and no orphan typing bubble');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.ok(await js('document.documentElement.scrollWidth<=window.innerWidth'));
+  await screenshot('main-temporary-relief-mobile');
+  passed('Main assistant renders optimistic typed/quick messages, typing state, no age gate and integrated temporary relief');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: base + '/?live=1' });
   await click('English'); await ready();
@@ -337,7 +376,12 @@ try {
   assert.ok(id);
   await fill('intake-input', 'Dry cough for 3 days'); await click('Send'); await ready();
   assert.match(await text(), /Dry cough for 3 days/);
-  assert.match(await text(), /Not yet recorded/);
+  assert.match(await text(), /Not yet asked|Not yet recorded/);
+  await click('Check self-care eligibility');
+  assert.match(await text(), /Complete the existing safety screening/);
+  assert.match(await text(), /Needs clinician review/);
+  assert.ok(!(await text()).includes('While you wait to see a doctor, these may help:'));
+  passed('Unanswered safety screening blocks self-care; review warning remains visible');
   await click('View original message');
   assert.ok(await js(`document.activeElement.id.startsWith('msg-')&&document.activeElement.classList.contains('msg-hl')`));
   passed('Intake, missing fields and exact patient evidence focus');
@@ -367,12 +411,20 @@ try {
     await js(`Array.from(document.querySelector(${JSON.stringify(selector)}).querySelectorAll('button')).find(e=>e.textContent.trim()==='No').click()`);
     await ready();
   }
-  for (const [label, answer] of [['Is the patient an adult?', 'Yes'], ['Might a doctor need to examine you in person?', 'No']]) {
-    await js(`Array.from(document.querySelector(${JSON.stringify(`[role="group"][aria-label=${JSON.stringify(label)}]`)}).querySelectorAll('button')).find(e=>e.textContent.trim()===${JSON.stringify(answer)}).click()`);
-    await ready();
-  }
+  // Legacy fixture eligibility for testing existing video bookings only; not a patient question.
+  await api(`/encounters/${id}/screening`, { adult: 'yes', physicalExam: 'no' });
+  await click('Refresh encounter'); await ready();
   assert.equal((await api(`/encounters/${id}`)).decision.route, 'video');
-  passed('All 18 server questions and adult/exam controls enable routine route');
+  passed('All 18 server safety questions remain visible without adult/exam controls');
+  await click('Check self-care eligibility');
+  await until(() => js(`!!document.getElementById('selfcare-answer')`), 'self-care age question');
+  await fill('selfcare-answer', '360'); await click('Answer self-care question');
+  await until(() => js(`document.getElementById('selfcare-answer')?.tagName==='SELECT'`), 'pregnancy question');
+  await js(`(()=>{const e=document.getElementById('selfcare-answer');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'yes');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await click('Answer self-care question');
+  assert.match(await text(), /Home-care guidance is not available/);
+  assert.ok(!(await text()).includes('While you wait to see a doctor, these may help:'));
+  passed('Patient-reported pregnancy skips self-care without inserting guidance into the conversation');
 
   await fill('report-text', '\nSYNTHETIC\nHaemoglobin: 13.2 g/dL\n'); await click('Extract values'); await ready();
   await click('View source line 3');
@@ -395,7 +447,14 @@ try {
 
   await cdp('Page.reload'); await ready();
   assert.match(await text(), /Booking receipt/);
-  assert.deepEqual(await js('Object.keys(sessionStorage)'), ['sehat-demo-encounter-id']);
+  // Both apps persist only an encounter ID (the olive app's key appears once `/` was visited).
+  const stored = await js('JSON.stringify(Object.entries(sessionStorage))');
+  const entries = JSON.parse(stored);
+  assert.ok(entries.some(([k]) => k === 'sehat-demo-encounter-id'));
+  for (const [key, value] of entries) {
+    assert.ok(['sehat-demo-encounter-id', 'sehat-olive-encounter-id'].includes(key), `unexpected storage key ${key}`);
+    assert.match(value, /^[0-9a-f-]{36}$/, 'session storage holds IDs only, never medical content');
+  }
   passed('Reload restoration and ID-only session storage');
 
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
@@ -519,10 +578,13 @@ try {
   passed('Temporary encounter fetch failure preserves ID and disables editing until recovery');
 
   await click('Start a new synthetic encounter'); await click('অসমীয়া (Assamese)'); await ready();
-  assert.match(await text(), /English rendering unavailable/);
   await fill('intake-input', 'মই দুৰ্বল অনুভৱ কৰিছোঁ'); await click('Send'); await ready();
+  assert.match(await text(), /synthetic phrasebook, not live translation/);
+  assert.match(await text(), /মই দুৰ্বল অনুভৱ কৰিছোঁ/);
   assert.equal(await js(`document.querySelectorAll('.msg.assistant')[1].getAttribute('lang')`), 'en');
-  passed('Assamese original is preserved; unavailable English and English guided follow-up are labelled honestly');
+  await fill('intake-input', 'এয়া পৰীক্ষাৰ বাবে অন্য বাক্য'); await click('Send'); await ready();
+  assert.match(await text(), /English rendering unavailable/);
+  passed('Assamese originals are preserved; exact phrasebook translations and unavailable translations are labelled honestly');
   await click('Doctor');
   await until(() => js(`document.querySelectorAll('.encounter-row').length>=2`), 'race test list');
   await intercept(`if(url.startsWith('/api/encounters/')){const r=await window.qaOriginalFetch(...args);const b=await r.clone().json();if(b.encounter?.id==='${second}') await new Promise(r=>setTimeout(r,900));return r;}`);

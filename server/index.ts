@@ -380,6 +380,14 @@ app.post('/api/encounters/:id/clarification/answer', async (req, res, next) => {
       field.transformation = english ? 'translation' : 'none';
       field.verification = 'unverified';
     }
+    // Keep the conversation's field list in step, quoting the patient's exact words.
+    const conversationField = enc.clarification.fieldKey ? enc.conversation?.fields.find(f => f.id === enc.clarification!.fieldKey) : undefined;
+    if (conversationField && conversationField.status !== 'answered') {
+      conversationField.status = 'answered';
+      conversationField.value = english?.text ?? original;
+      conversationField.quote = original;
+      conversationField.sourceId = answer.id;
+    }
     saveEncounter(enc);
     trace('clarification.answer', 'completed', `Patient answered in ${enc.language}${english ? ` (English rendering: ${english.status})` : ' (no English rendering)'}${field ? `; field "${field.key}" now patient-reported` : ''}`);
     res.json(snapshot(enc.id));

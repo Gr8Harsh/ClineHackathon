@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AvailableDoctor, Language, Proposal, Snapshot } from '../../shared/types.ts';
+import type { AssistedBy, AvailableDoctor, Language, Proposal, Snapshot } from '../../shared/types.ts';
 import { api, ApiError } from '../api.ts';
 import { SummaryPanel } from '../components/SummaryPanel.tsx';
 import { ScreeningPanel } from '../components/ScreeningPanel.tsx';
@@ -8,6 +8,9 @@ import { DoctorPicker } from '../components/DoctorPicker.tsx';
 import { DocumentPanel } from '../components/DocumentPanel.tsx';
 import { TracePanel } from '../components/TracePanel.tsx';
 import { MessageEvidence } from '../components/MessageEvidence.tsx';
+import { VoiceInput } from '../components/VoiceInput.tsx';
+import { GateProbe } from '../components/GateProbe.tsx';
+import { SelfCarePanel } from '../components/SelfCarePanel.tsx';
 import { canOfferBooking, focusEvidence, type LoadState } from '../ui.ts';
 
 // Only the synthetic encounter ID is stored; medical content and confirmation tokens never are.
@@ -30,8 +33,14 @@ const STARTERS: Record<Language, string[]> = {
   hi: ['मुझे चार दिन से सिरदर्द है', 'मैं कमज़ोर महसूस कर रहा हूँ'],
   en: ['I have had a headache for 4 days', 'I feel weak and tired'],
 };
+// Synthetic replies to the doctor's demo question. Phrasebook entries; native-speaker review required.
+const ANSWER_STARTERS: Record<Language, string[]> = {
+  as: ['হয়, মই প্ৰতিদিনে এছপিৰিন খাওঁ', 'নাই, মই কোনো ঔষধ নাখাওঁ'],
+  hi: ['हाँ, मैं रोज़ एस्पिरिन लेता हूँ', 'नहीं, मैं कोई दवा नहीं लेता'],
+  en: ['Yes, I take aspirin every day', 'No, I do not take any medicines'],
+};
 
-export function PatientView({ active }: { active: boolean }) {
+export function PatientView({ active, agentConfigured = false }: { active: boolean; agentConfigured?: boolean }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,6 +54,8 @@ export function PatientView({ active }: { active: boolean }) {
   const [answer, setAnswer] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [fresh, setFresh] = useState(false);
+  const [assisted, setAssisted] = useState(false);
+  const [worker, setWorker] = useState<AssistedBy>({ name: '', role: 'asha' });
   const operation = useRef(false);
   const restoreRequest = useRef(0);
   const doctorRequest = useRef(0);
@@ -80,6 +91,14 @@ export function PatientView({ active }: { active: boolean }) {
     setProposal(null); setDoctors([]); setDoctorState('idle'); setDoctorError('');
   }, [routeKey]);
 
+  // The agent's propose_slot tool creates a real proposal on the server. Show it for explicit review.
+  useEffect(() => {
+    const offered = snapshot?.proposal;
+    if (!offered || !snapshot || !canOfferBooking(snapshot)) return;
+    proposalVersion.current = snapshot.encounter.version;
+    setProposal(p => p ?? offered);
+  }, [routeKey, snapshot?.proposal?.id]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [snapshot?.encounter.messages.length]);
@@ -97,7 +116,7 @@ export function PatientView({ active }: { active: boolean }) {
 
   function start(language: Language) {
     void run(async () => {
-      const s = await api.createEncounter(language);
+      const s = await api.createEncounter(language, assisted && worker.name.trim() ? { name: worker.name.trim(), role: worker.role } : undefined);
       saveId(s.encounter.id);
       setSnapshot(s);
     });
@@ -188,7 +207,21 @@ export function PatientView({ active }: { active: boolean }) {
         <h1>Prepare for a consultation</h1>
         <p>Choose a language. Original messages are preserved. Guided mode does not provide general translation; a configured language service does not prove successful translation. Available English renderings remain unverified.</p>
         <div className="lang-choices">
-          {LANGS.map(l => <button key={l.code} lang={l.code} className="btn btn-primary" disabled={busy || restoring} onClick={() => start(l.code)}>{l.label}</button>)}
+          {LANGS.map(l => <button key={l.code} lang={l.code} className="btn btn-primary" disabled={busy || restoring || (assisted && !worker.name.trim())} onClick={() => start(l.code)}>{l.label}</button>)}
+        </div>
+        <div className="assist-form">
+          <label className="row"><input type="checkbox" checked={assisted} onChange={e => setAssisted(e.target.checked)} /> Assisted mode: an ASHA or clinic worker is entering the patient’s words</label>
+          {assisted && <>
+            <label className="input-label" htmlFor="worker-name">Health worker name (synthetic)</label>
+            <input id="worker-name" maxLength={100} value={worker.name} onChange={e => setWorker(w => ({ ...w, name: e.target.value }))} placeholder="e.g. Asha worker, Barpeta" />
+            <label className="input-label" htmlFor="worker-role">Role</label>
+            <select id="worker-role" value={worker.role} onChange={e => setWorker(w => ({ ...w, role: e.target.value as AssistedBy['role'] }))}>
+              <option value="asha">ASHA worker</option>
+              <option value="clinic-staff">Clinic staff</option>
+            </select>
+            <p className="empty">The worker types or speaks for the patient. Every message is labelled “entered by health worker” so the doctor knows who recorded it.</p>
+            {!worker.name.trim() && <p className="notice">Enter the worker’s name to start in assisted mode.</p>}
+          </>}
         </div>
         {(busy || restoring) && <p role="status">{restoring ? 'Restoring saved encounter…' : 'Creating encounter…'}</p>}
         {error && <div className="notice" role="alert">{error} <button className="btn btn-ghost" disabled={restoring || busy} onClick={() => setRefresh(r => r + 1)}>Retry saved encounter</button></div>}
@@ -205,6 +238,9 @@ export function PatientView({ active }: { active: boolean }) {
     <CareRouteBanner decision={snapshot.decision} booking={snapshot.booking} />
     {error && <div className="notice" role="alert">{error}</div>}
     {restoring && <p role="status">Refreshing the encounter. Editing and booking are temporarily disabled.</p>}
+    {enc.assistedBy && <div className="assisted-banner" role="status">
+      Assisted intake · {enc.assistedBy.role === 'asha' ? 'ASHA worker' : 'Clinic staff'} <strong>{enc.assistedBy.name}</strong> is entering the patient’s own words. Read each question aloud to the patient.
+    </div>}
     <div className="row">
       <span className="empty">Encounter {enc.id.slice(0, 8)} · {LANGS.find(l => l.code === enc.language)?.label}</span>
       <button className="btn btn-ghost btn-sm" disabled={busy || restoring} onClick={() => setRefresh(r => r + 1)}>Refresh encounter</button>
@@ -218,11 +254,20 @@ export function PatientView({ active }: { active: boolean }) {
         if (!answer.trim()) return;
         void run(async () => { setSnapshot(await api.answerClarification(enc.id, answer.trim())); setAnswer(''); });
       }}>
-        <p lang="en"><strong>{pendingQuestion.question}</strong></p>
-        <p className="empty">The question is shown in English as typed by the doctor; no translation was performed.</p>
+        {pendingQuestion.questionForPatient && <p lang={enc.language}><strong>{pendingQuestion.questionForPatient.text}</strong></p>}
+        <p lang="en">{pendingQuestion.questionForPatient ? <span className="meta">Doctor’s original (English): </span> : null}<strong>{pendingQuestion.question}</strong></p>
+        <p className="empty">{pendingQuestion.questionForPatient
+          ? pendingQuestion.questionForPatient.status === 'fixture' ? 'Patient-language text is from the synthetic phrasebook, not live translation.' : 'Patient-language text is machine-translated and unverified.'
+          : 'Shown in English as typed by the doctor; no translation was available.'}</p>
+        <div className="chips" aria-label="Synthetic example answers">
+          {ANSWER_STARTERS[enc.language].map(s => <button type="button" key={s} lang={enc.language} className="chip" disabled={disabled} onClick={() => setAnswer(s)}>{s}</button>)}
+        </div>
         <label className="input-label" htmlFor="clarification-answer">Your answer, in your own language</label>
         <textarea id="clarification-answer" lang={enc.language} rows={3} maxLength={4000} value={answer} disabled={disabled} onChange={e => setAnswer(e.target.value)} />
-        <button className="btn btn-primary" disabled={disabled || !answer.trim()}>Send answer to doctor</button>
+        <div className="row">
+          <button className="btn btn-primary" disabled={disabled || !answer.trim()}>Send answer to doctor</button>
+          <VoiceInput language={enc.language} disabled={disabled} onText={t => setAnswer(a => (a ? `${a} ${t}` : t))} />
+        </div>
       </form>
     </section>}
 
@@ -246,8 +291,11 @@ export function PatientView({ active }: { active: boolean }) {
               placeholder="Describe what is wrong, in your own words…" onChange={e => setInput(e.target.value)} />
             <button className="btn btn-primary" disabled={disabled || !input.trim()}>Send</button>
           </form>
+          <div className="row voice-row"><VoiceInput language={enc.language} disabled={disabled} onText={t => setInput(i => (i ? `${i} ${t}` : t))} /></div>
         </section>
 
+        <SelfCarePanel snapshot={snapshot} disabled={disabled} onSnapshot={setSnapshot} />
+        <div id="selfcare-care-flow" />
         {emergency ? <section className="card emergency-card" role="alert">
           <div className="body">
             <h2>Do not wait for an appointment</h2>
@@ -265,9 +313,11 @@ export function PatientView({ active }: { active: boolean }) {
 
       <div className="stack">
         <SummaryPanel fields={enc.fields} messages={enc.messages} busy={disabled} onSource={showSource}
+          askedFields={enc.askedFields} askTracked={!enc.agentTurns} clarification={enc.clarification}
           onConfirm={key => void run(async () => setSnapshot(await api.confirmField(enc.id, key)))} />
         <ScreeningPanel screening={enc.screening} busy={disabled}
           onChange={body => void run(async () => setSnapshot(await api.setScreening(enc.id, body)))} />
+        {!snapshot.booking && !emergency && <GateProbe encounterId={enc.id} agentConfigured={agentConfigured} disabled={disabled} onDone={() => setRefresh(r => r + 1)} />}
         <TracePanel active={active} />
       </div>
     </div>

@@ -12,7 +12,7 @@ export function extractFields(messages: { id: string; text: string; english?: st
         const explicit = text.match(new RegExp(`^${key}\\s*:\\s*(.+)$`, 'i'));
         if (explicit) { value = explicit[1]; source = msg; }
         else if (key === 'duration' && !value) {
-          const duration = text.match(/\b(?:for|since)\s+\d+\s+(?:hours?|days?|weeks?|months?)\b/i);
+          const duration = text.match(/\b(?:for|since)\s+(?:\d+|a few|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:hours?|days?|weeks?|months?)\b/i);
           if (duration) { value = duration[0]; source = msg; }
         }
       }

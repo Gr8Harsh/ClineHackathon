@@ -4,12 +4,14 @@ import { PatientView } from './views/PatientView.tsx';
 import { DoctorView } from './views/DoctorView.tsx';
 import { EvalView } from './views/EvalView.tsx';
 import { PreviewApp } from './preview/PreviewApp.tsx';
+import { MainAssistant } from './preview/MainAssistant.tsx';
 import './preview/preview.css';
 
 type Tab = 'patient' | 'doctor' | 'eval';
 
 export function App() {
-  return new URLSearchParams(window.location.search).get('live') === '1' ? <LiveApp /> : <PreviewApp />;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('live') === '1' ? <LiveApp /> : params.get('fixture') === '1' ? <PreviewApp /> : <MainAssistant />;
 }
 
 function LiveApp() {
@@ -58,7 +60,7 @@ function LiveApp() {
         <div className="demo-notice"><strong>Local demo · synthetic data only.</strong> No authentication or patient isolation. Do not enter real medical information.</div>
         {healthError && <div className="notice" role="alert">API status unavailable: {healthError} <button className="btn btn-ghost btn-sm" disabled={healthLoading} onClick={checkHealth}>Retry connection</button></div>}
         {healthLoading && <p role="status">Checking API connection…</p>}
-        <div hidden={tab !== 'patient'}><PatientView active={tab === 'patient'} /></div>
+        <div hidden={tab !== 'patient'}><PatientView active={tab === 'patient'} agentConfigured={agentMode === 'cline-sdk'} /></div>
         {tab === 'doctor' && <DoctorView />}
         {tab === 'eval' && <EvalView />}
       </main>

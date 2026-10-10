@@ -1,4 +1,4 @@
-import { Encounter, Language, Message } from '../../shared/types.ts';
+import { AssistedBy, Encounter, Language, Message } from '../../shared/types.ts';
 import { emptyScreening } from '../rules/redFlags.ts';
 import { extractFields } from './briefing.ts';
 import { getDb } from '../db.ts';
@@ -11,17 +11,18 @@ const GREETINGS: Record<Language, string> = {
   as: 'নমস্কাৰ। মই আপোনাক পৰামৰ্শৰ প্ৰস্তুতিত সহায় কৰিব পাৰোঁ। মই ৰোগ নিৰ্ণয় নকৰোঁ। আপোনাৰ সমস্যা আপোনাৰ শব্দত কোৱাৰ চেষ্টা কৰক।',
 };
 
-export function createEncounter(language: Language, name = 'Demo Patient'): Encounter {
+export function createEncounter(language: Language, name = 'Demo Patient', assistedBy?: AssistedBy): Encounter {
   const greeting: Message = {
     id: uuid(), role: 'assistant', text: GREETINGS[language], language,
     translation: 'original', createdAt: nowIso(),
   };
   const encounter: Encounter = {
     id: uuid(), name, language, messages: [greeting], fields: extractFields([greeting]),
-    screening: emptyScreening(), documents: [], createdAt: nowIso(), version: 1,
+    screening: emptyScreening(), documents: [], askedFields: [], createdAt: nowIso(), version: 1,
+    ...(assistedBy ? { assistedBy } : {}),
   };
   saveEncounter(encounter);
-  trace('encounter.create', 'completed', `Encounter ${encounter.id.slice(0, 8)} created (${language})`);
+  trace('encounter.create', 'completed', `Encounter ${encounter.id.slice(0, 8)} created (${language})${assistedBy ? ` · assisted by ${assistedBy.role}` : ''}`);
   return encounter;
 }
 

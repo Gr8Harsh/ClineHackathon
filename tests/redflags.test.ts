@@ -68,9 +68,9 @@ test('all missing safety answers block routine routing even with exam preference
   assert.equal(evaluateRedFlags(emptyScreening()).missingSafety.length, 18);
 });
 
-test('adult eligibility and every individual unknown block routine routing', () => {
+test('age never blocks consultation but every unknown safety answer blocks routine routing', () => {
   const s = { ...complete(), physicalExam: 'no' as const };
-  assert.equal(decideCareRoute({ ...s, adult: 'no' }, [], { video: true, inPerson: true }).route, 'clarification');
+  assert.equal(decideCareRoute({ ...s, adult: 'no' }, [], { video: true, inPerson: true }).route, 'video');
   for (const key of Object.keys(s.answers)) {
     assert.equal(decideCareRoute({ ...s, answers: { ...s.answers, [key]: 'unknown' } }, [], { video: true, inPerson: true }).route, 'clarification', key);
   }

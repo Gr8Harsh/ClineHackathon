@@ -9,7 +9,7 @@ import { emptyScreening, RED_FLAG_RULES } from '../server/rules/redFlags.ts';
 import { canOfferBooking } from '../src/ui.ts';
 import type { Snapshot } from '../shared/types.ts';
 
-test('frontend renders a control for every backend screening rule plus adult eligibility', () => {
+test('frontend renders every backend safety rule without age or exam gates', () => {
   // Static rendering cannot run the browser API-loading effect. Supply the
   // backend's actual rule catalog explicitly; do not duplicate a UI rule list.
   const html = renderToStaticMarkup(createElement(ScreeningPanel, {
@@ -17,11 +17,11 @@ test('frontend renders a control for every backend screening rule plus adult eli
     initialCatalog: { ruleVersion: 'test', adultRequired: true, questions: RED_FLAG_RULES.map(rule => ({ key: rule.screeningKey!, text: rule.label })) },
   }));
   assert.match(html, /0\/18 answered/);
-  assert.match(html, /Is the patient an adult/);
+  assert.doesNotMatch(html, /Is the patient an adult|Might a doctor need/);
   assert.match(html, /Chest pain described as squeezing/);
   assert.match(html, /Chest pain spreading to arm/);
   const groups = html.match(/role="group"/g) ?? [];
-  assert.equal(groups.length, RED_FLAG_RULES.length + 2);
+  assert.equal(groups.length, RED_FLAG_RULES.length);
 });
 
 test('presentation booking gate rejects emergency, unknowns and existing booking', () => {

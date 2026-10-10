@@ -211,3 +211,17 @@ details.card > summary { padding: 12px 16px; cursor: pointer; font-weight: 600; 
   .screening-grid { grid-template-columns: 1fr; }
   .msg { max-width: 100%; }
 }
+
+/* Demo loop: "not asked" is amber and visibly different from "asked, unanswered". */
+.prov-notasked { background: #ffb300; color: #3d2600; }
+.prov-asked { background: var(--info-soft); color: var(--info); }
+.field-notasked { border-left: 4px solid #ffb300; padding-left: 10px; background: #fffaf0; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.side-by-side > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.side-by-side .meta { display: block; margin-bottom: 2px; }
+@media (max-width: 560px) { .side-by-side { grid-template-columns: 1fr; } }
+.assisted-banner { background: var(--info-soft); color: var(--info); border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+.assist-form { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.assist-form input, .assist-form select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.probe-result { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.mic-on { background: var(--emergency-soft); color: var(--emergency); }

@@ -14,7 +14,8 @@
     "start": "tsx --env-file-if-exists=.env server/index.ts",
     "test": "tsx --test tests/*.test.ts",
     "eval": "tsx scripts/evaluate.ts",
-    "check": "npm run build && npm test && npm run eval"
+    "check": "npm run build && npm test && npm run eval",
+    "review:transcripts": "tsx scripts/review-transcripts.ts"
   },
   "dependencies": {
     "@cline/sdk": "0.0.92",

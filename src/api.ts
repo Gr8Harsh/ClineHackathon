@@ -1,4 +1,8 @@
-import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument, Answer, Screening } from '../shared/types.ts';
+import type { AssistedBy, AvailableDoctor, Booking, ClarificationDraft, EnteredBy, EvalReport, FieldKey, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument, Answer, Screening } from '../shared/types.ts';
+import type { SelfCareRequest, SelfCareResponse } from '../shared/selfcare.ts';
+
+export type EncounterMeta = { id: string; name: string; language: Language; createdAt: string; assistedBy: AssistedBy | null; booked: boolean };
+export type GateProbeResult = { via: 'cline-sdk' | 'direct-tool-call'; calledBookSlot: boolean; outcome: string; booking: Booking | null };
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); this.name = 'ApiError'; }
@@ -19,12 +23,15 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  selfcare: (id: string, body: SelfCareRequest = {}) => req<{ selfcare: SelfCareResponse; snapshot: Snapshot }>(`/api/encounters/${id}/selfcare`, { method: 'POST', body: JSON.stringify(body) }),
   screeningQuestions: () => req<{ ruleVersion: string; questions: { key: string; text: string }[]; adultRequired: boolean }>('/api/screening/questions'),
   health: () => req<{ ok: boolean; agentMode: 'cline-sdk' | 'guided'; ruleVersion: string }>('/api/health'),
-  createEncounter: (language: Language) => req<Snapshot>('/api/encounters', { method: 'POST', body: JSON.stringify({ language }) }),
+  createEncounter: (language: Language, assistedBy?: AssistedBy) => req<Snapshot>('/api/encounters', { method: 'POST', body: JSON.stringify(assistedBy ? { language, assistedBy } : { language }) }),
   getEncounter: (id: string) => req<Snapshot>(`/api/encounters/${id}`),
-  listEncounters: () => req<{ id: string; name: string; language: Language; createdAt: string }[]>('/api/encounters'),
-  sendMessage: (id: string, text: string) => req<{ message: Message; snapshot: Snapshot }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify({ text }) }),
+  listEncounters: () => req<EncounterMeta[]>('/api/encounters'),
+  sendMessage: (id: string, text: string, enteredBy?: EnteredBy) => req<{ message: Message; snapshot: Snapshot; prompt: { kind: 'yesno' | 'text' } | null }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify(enteredBy ? { text, enteredBy } : { text }) }),
+  reliefMessage: (id: string, text: string) => req<{ snapshot: Snapshot }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify({ text, workflow: 'temporary-relief' }) }),
+  conversationMessage: (id: string, text: string, clientMessageId: string) => req<{ message: Message; snapshot: Snapshot }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify({ text, clientMessageId, workflow: 'conversation' }) }),
   setScreening: (id: string, body: { key?: string; answer?: Answer; purpose?: Screening['purpose']; physicalExam?: Answer; adult?: Answer }) => req<Snapshot>(`/api/encounters/${id}/screening`, { method: 'POST', body: JSON.stringify(body) }),
   confirmField: (id: string, key: string) => req<Snapshot>(`/api/encounters/${id}/fields/${key}/confirm`, { method: 'POST', body: '{}' }),
   uploadDocument: (id: string, name: string, text: string) => req<{ document: LabDocument; snapshot: Snapshot }>(`/api/encounters/${id}/documents`, { method: 'POST', body: JSON.stringify({ name, text }) }),
@@ -32,8 +39,10 @@ export const api = {
   createProposal: (id: string, slotId: string) => req<{ proposal: Proposal; snapshot: Snapshot }>(`/api/encounters/${id}/proposals`, { method: 'POST', body: JSON.stringify({ slotId }) }),
   confirmProposal: (proposalId: string, encounterId: string) => req<{ confirmed: boolean; token: string }>(`/api/proposals/${proposalId}/confirm`, { method: 'POST', body: JSON.stringify({ encounterId }) }),
   bookProposal: (proposalId: string, encounterId: string, token: string) => req<{ booking: Booking; snapshot: Snapshot }>(`/api/proposals/${proposalId}/book`, { method: 'POST', body: JSON.stringify({ encounterId, token }) }),
-  askClarification: (id: string, question: string) => req<Snapshot>(`/api/encounters/${id}/clarification`, { method: 'POST', body: JSON.stringify({ question }) }),
-  answerClarification: (id: string, text: string) => req<Snapshot>(`/api/encounters/${id}/clarification/answer`, { method: 'POST', body: JSON.stringify({ text }) }),
+  askClarification: (id: string, question: string, fieldKey?: FieldKey, draftedBy?: 'doctor' | 'cline-sdk' | 'template') => req<Snapshot>(`/api/encounters/${id}/clarification`, { method: 'POST', body: JSON.stringify({ question, ...(fieldKey ? { fieldKey } : {}), ...(draftedBy ? { draftedBy } : {}) }) }),
+  draftClarification: (id: string) => req<ClarificationDraft>(`/api/encounters/${id}/clarification/draft`, { method: 'POST', body: '{}' }),
+  gateProbe: (id: string, mode: 'agent' | 'direct') => req<GateProbeResult>(`/api/encounters/${id}/gate-probe`, { method: 'POST', body: JSON.stringify({ mode }) }),
+  answerClarification: (id: string, text: string, enteredBy?: EnteredBy) => req<Snapshot>(`/api/encounters/${id}/clarification/answer`, { method: 'POST', body: JSON.stringify(enteredBy ? { text, enteredBy } : { text }) }),
   traces: () => req<TraceEvent[]>('/api/traces'),
   evalReport: () => req<EvalReport>('/api/eval'),
   runEval: () => req<EvalReport>('/api/eval/run', { method: 'POST', body: '{}' }),

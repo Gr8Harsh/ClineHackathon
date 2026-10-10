@@ -1,6 +1,6 @@
 import { Answer, Screening } from '../../shared/types.ts';
 
-export const RULE_VERSION = 'sehat-redflags-v0.2.0-illustrative';
+export const RULE_VERSION = 'sehat-redflags-v0.3.0-selfcare-draft';
 
 export interface RedFlagRule {
   id: string;
@@ -74,10 +74,34 @@ export function evaluateRedFlags(screening: Screening, freeText: string[] = []):
     const byText = (rule.patterns ?? []).some(p => freeText.some(t => hasPositiveMention(t, p)));
     if (byScreening || byText) triggered.push({ id: rule.id, label: rule.label, citation: rule.citation, citationUrl: rule.citationUrl });
   }
+  // Supplemental draft self-care signs do not alter the existing 18-question catalogue.
+  // They are application-owned safeguards, not a claim of clinician validation.
+  for (const rule of SELFCARE_TEXT_RULES) {
+    if (rule.patterns.some(p => freeText.some(t => hasPositiveMention(t, p)))) {
+      triggered.push({ id: rule.id, label: rule.label, citation: 'Supplied self-care draft, section 3 — needs clinician review', citationUrl: '/docs/selfcare-guidance.md' });
+    }
+  }
+  if (screening.selfCareAlert) {
+    triggered.push({ id: 'SC-ANSWER', label: screening.selfCareAlert.question, citation: 'Patient-reported self-care warning sign; supplied draft — needs clinician review', citationUrl: '/docs/selfcare-guidance.md' });
+  }
   const missingSafety: string[] = [];
   for (const rule of RED_FLAG_RULES) {
     if (rule.screeningKey && !['yes', 'no'].includes(screening.answers[rule.screeningKey])) missingSafety.push(rule.label);
   }
   return { triggered, missingSafety, ruleVersion: RULE_VERSION };
 }
+
+const SELFCARE_TEXT_RULES = [
+  { id: 'SC-BREATH', label: 'Trouble breathing', patterns: [/trouble breathing/i, /difficulty breathing/i, /breathing difficulty/i] },
+  { id: 'SC-WAKE', label: 'Unconscious, very drowsy or cannot be woken', patterns: [/unconscious/i, /very drowsy/i, /cannot be wo(?:ken|ke)/i, /can'?t wake/i, /very sleepy/i] },
+  { id: 'SC-HEAD', label: 'Sudden severe or worst headache', patterns: [/sudden.{0,15}severe headache/i, /worst headache/i] },
+  { id: 'SC-BLEED', label: 'Heavy bleeding that does not stop', patterns: [/bleed(?:ing)?.{0,35}(?:won'?t stop|does not stop|not stopping)/i] },
+  { id: 'SC-STOOL', label: 'Black or bloody stool', patterns: [/(?:black|bloody) stools?/i, /blood in (?:the |my )?stool/i] },
+  { id: 'SC-BITE', label: 'Snake bite or swallowed chemical/unknown substance', patterns: [/snake ?bite/i, /(?:swallow(?:ed|ing)?|drank).{0,30}(?:chemical|unknown substance)/i] },
+  { id: 'SC-ALLERGY', label: 'Swelling of face or throat', patterns: [/(?:face|throat).{0,15}(?:swelling|swollen)/i, /swelling of (?:the )?(?:face|throat)/i] },
+  { id: 'SC-PREG', label: 'Pregnancy warning sign', patterns: [/pregnan.{0,60}(?:bleeding|severe belly pain|reduced baby movement|fits)/i] },
+  { id: 'SC-DEHYDRATION', label: 'Cannot drink, sunken eyes or no urine for 8 hours', patterns: [/cannot drink/i, /can'?t drink/i, /sunken eyes/i, /no urine for (?:8|eight|9|nine|1\d|2\d) hours/i] },
+  { id: 'SC-HEAT', label: 'Very high body temperature or hot dry skin with no sweating', patterns: [/very high body temperature/i, /hot dry skin/i] },
+  { id: 'SC-BURN', label: 'Chemical or electrical burn', patterns: [/(?:chemical|electrical|electric) burns?/i] },
+];
 
