@@ -1,27 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import type { Screening, Answer } from '../../shared/types.ts';
-import type { api } from '../api.ts';
+import { api } from '../api.ts';
 
-const QUESTIONS: { key: string; label: string }[] = [
-  { key: 'chestPressure', label: 'Chest pain described as squeezing or pressure?' },
-  { key: 'radiatingChestPain', label: 'Chest pain spreading to arm, neck or jaw?' },
-  { key: 'breathlessSevere', label: 'Severe difficulty breathing / gasping?' },
-  { key: 'oneSidedWeakness', label: 'Weakness or numbness on one side?' },
-  { key: 'faceDroop', label: 'Face drooping on one side?' },
-  { key: 'speechSlurred', label: 'Slurred or confused speech?' },
-  { key: 'strokeLast24h', label: 'Stroke-like signs in the last 24h?' },
-  { key: 'fainted', label: 'Passed out or lost consciousness?' },
-  { key: 'bluePale', label: 'Blue, grey or very pale skin/lips?' },
-  { key: 'shiveringFever', label: 'Uncontrollable shivering + fever?' },
-  { key: 'confusion', label: 'New confusion with infection?' },
-  { key: 'noUrine', label: 'Not passed urine all day?' },
-  { key: 'nonFadingRash', label: 'Rash that does not fade when pressed?' },
-  { key: 'seizure', label: 'Fit or seizure?' },
-  { key: 'vomitingBlood', label: 'Vomiting or coughing blood?' },
-  { key: 'selfHarm', label: 'Thoughts of self-harm?' },
-  { key: 'headInjury', label: 'Severe head injury?' },
-  { key: 'overdose', label: 'Poisoning or overdose?' },
-];
+type QuestionCatalog = Awaited<ReturnType<typeof api.screeningQuestions>>;
 
 const EXAM: { key: 'yes' | 'no' | 'unknown'; label: string }[] = [
   { key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }, { key: 'unknown', label: 'Not sure' },
@@ -46,19 +27,33 @@ function Toggle({ value, onChange, label, disabled }: { value: Answer; onChange:
 }
 
 export function ScreeningPanel({
-  screening, onChange, busy = false,
+  screening, onChange, busy = false, initialCatalog,
 }: {
   screening: Screening;
   onChange: (body: Parameters<typeof api.setScreening>[1]) => void;
   busy?: boolean;
+  initialCatalog?: QuestionCatalog;
 }) {
-  const answered = QUESTIONS.filter(q => ['yes', 'no'].includes(screening.answers[q.key])).length;
+  const [catalog, setCatalog] = useState<QuestionCatalog | null>(initialCatalog ?? null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setError('');
+    api.screeningQuestions().then(value => { if (!cancelled) setCatalog(value); })
+      .catch(e => { if (!cancelled) setError((e as Error).message); });
+    return () => { cancelled = true; };
+  }, [retry]);
+  const questions = catalog?.questions ?? [];
+  const answered = questions.filter(q => ['yes', 'no'].includes(screening.answers[q.key])).length;
   return (
     <section className="card">
       <header>
-        Safety screening <span className="sub">deterministic · {answered}/{QUESTIONS.length} answered</span>
+        Safety screening <span className="sub">{catalog ? `${answered}/${questions.length} answered · ${catalog.ruleVersion}` : 'Loading server questions…'}</span>
       </header>
       <div className="body" style={{ paddingTop: 8, paddingBottom: 8 }}>
+        {error && <p className="notice" role="alert">Unable to load screening questions: {error} <button className="btn btn-ghost btn-sm" onClick={() => setRetry(r => r + 1)}>Retry screening questions</button></p>}
+        <p className="empty">Questions are provided in English. Do not guess an answer if the wording is unclear; seek help understanding it. These illustrative questions do not establish medical clearance.</p>
         <label className="input-label" htmlFor="visit-purpose">Reason for consultation</label>
         <select id="visit-purpose" value={screening.purpose} disabled={busy} onChange={e => onChange({ purpose: e.target.value as Screening['purpose'] })}>
           <option value="new-concern">New concern</option><option value="report-review">Report review</option><option value="follow-up">Follow-up</option>
@@ -87,11 +82,11 @@ export function ScreeningPanel({
           Answer “No” to a red-flag question only if it is truly absent. An unanswered question stays unknown and is shown as missing — it is never treated as “no”.
         </p>
         <div className="screening-grid">
-          {QUESTIONS.map(q => (
+          {questions.map(q => (
             <Fragment key={q.key}>
-              <span className="q" style={{ fontSize: 13 }}>{q.label}</span>
+              <span className="q" style={{ fontSize: 13 }}>{q.text}</span>
               <Toggle
-                label={q.label} disabled={busy}
+                label={q.text} disabled={busy}
                 value={screening.answers[q.key] ?? 'unknown'}
                 onChange={a => onChange({ key: q.key, answer: a })}
               />

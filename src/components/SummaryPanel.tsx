@@ -5,9 +5,9 @@ const LABELS: Record<FieldKey, string> = {
   medications: 'Current medications', allergies: 'Allergies',
 };
 
-function provenanceBadge(field: BriefField) {
+function provenanceBadge(field: BriefField, messages: Message[]) {
   if (field.value === null) return <span className="prov prov-missing">not recorded</span>;
-  if (!field.sourceId) return <span className="prov prov-missing">source unavailable</span>;
+  if (!messages.some(m => m.id === field.sourceId && m.role === 'patient')) return <span className="prov prov-missing">source unavailable</span>;
   return <span className="prov prov-reported">patient-reported</span>;
 }
 
@@ -30,7 +30,7 @@ export function SummaryPanel({
           <div key={f.key} className="field-row">
             <div className="field-head">
               <span className="field-label">{LABELS[f.key]}</span>
-              {provenanceBadge(f)}
+              {provenanceBadge(f, messages)}
             </div>
             {f.value === null ? (
               <div className="field-value missing">Not yet recorded — this is not the same as “none”.</div>
@@ -44,7 +44,7 @@ export function SummaryPanel({
                   View original message
                 </button>
               )}
-              {onConfirm && f.value !== null && f.sourceId && f.verification === 'unverified' && (
+              {onConfirm && f.value !== null && messages.some(m => m.id === f.sourceId && m.role === 'patient') && f.verification === 'unverified' && (
                 <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onConfirm(f.key)}>
                   Confirm recorded wording
                 </button>

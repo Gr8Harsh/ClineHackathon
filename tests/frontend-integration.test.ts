@@ -10,7 +10,12 @@ import { canOfferBooking } from '../src/ui.ts';
 import type { Snapshot } from '../shared/types.ts';
 
 test('frontend renders a control for every backend screening rule plus adult eligibility', () => {
-  const html = renderToStaticMarkup(createElement(ScreeningPanel, { screening: emptyScreening(), onChange: () => {} }));
+  // Static rendering cannot run the browser API-loading effect. Supply the
+  // backend's actual rule catalog explicitly; do not duplicate a UI rule list.
+  const html = renderToStaticMarkup(createElement(ScreeningPanel, {
+    screening: emptyScreening(), onChange: () => {},
+    initialCatalog: { ruleVersion: 'test', adultRequired: true, questions: RED_FLAG_RULES.map(rule => ({ key: rule.screeningKey!, text: rule.label })) },
+  }));
   assert.match(html, /0\/18 answered/);
   assert.match(html, /Is the patient an adult/);
   assert.match(html, /Chest pain described as squeezing/);
@@ -43,5 +48,6 @@ test('doctor briefing is read-only when no patient-confirm callback is supplied'
     onSource: () => {},
   }));
   assert.doesNotMatch(html, /I confirm this is accurate/);
+  assert.doesNotMatch(html, /Confirm recorded wording/);
   assert.match(html, /Unverified/i);
 });
