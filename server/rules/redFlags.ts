@@ -1,6 +1,6 @@
 import { Answer, Screening } from '../../shared/types.ts';
 
-export const RULE_VERSION = 'sehat-redflags-v0.1.0-illustrative';
+export const RULE_VERSION = 'sehat-redflags-v0.2.0-illustrative';
 
 export interface RedFlagRule {
   id: string;
@@ -18,8 +18,8 @@ export interface RedFlagRule {
  * self-harm, head injury and poisoning guidance.
  */
 export const RED_FLAG_RULES: RedFlagRule[] = [
-  { id: 'RF-01', label: 'Chest pain described as squeezing or pressure', citation: 'NHS — Heart attack: call 999 for chest pain that feels tight or squeezing', citationUrl: 'https://www.nhs.uk/conditions/heart-attack/', patterns: [/chest (pain|pressure|tightness)/i, /squeez(ing|e).{0,20}chest/i, /chest.{0,20}(squeez|pressure|tight)/i] },
-  { id: 'RF-02', label: 'Chest pain spreading to arm, neck or jaw', citation: 'NHS — Heart attack: chest pain spreading to arm, neck or jaw', citationUrl: 'https://www.nhs.uk/conditions/heart-attack/', patterns: [/chest.{0,40}(arm|neck|jaw)/i, /(arm|neck|jaw).{0,40}chest pain/i] },
+  { id: 'RF-01', label: 'Chest pain described as squeezing or pressure', citation: 'NHS — Heart attack: call 999 for chest pain that feels tight or squeezing', citationUrl: 'https://www.nhs.uk/conditions/heart-attack/', screeningKey: 'chestPressure', patterns: [/chest (pain|pressure|tightness)/i, /squeez(ing|e).{0,20}chest/i, /chest.{0,20}(squeez|pressure|tight)/i] },
+  { id: 'RF-02', label: 'Chest pain spreading to arm, neck or jaw', citation: 'NHS — Heart attack: chest pain spreading to arm, neck or jaw', citationUrl: 'https://www.nhs.uk/conditions/heart-attack/', screeningKey: 'radiatingChestPain', patterns: [/chest.{0,40}(arm|neck|jaw)/i, /(arm|neck|jaw).{0,40}chest pain/i] },
   { id: 'RF-03', label: 'Severe difficulty breathing or unable to speak in sentences', citation: 'NHS — Heart attack: severe difficulty breathing, gasping or unable to get words out', citationUrl: 'https://www.nhs.uk/conditions/heart-attack/', screeningKey: 'breathlessSevere', patterns: [/can'?t breathe/i, /cannot breathe/i, /severe short(ness)? of breath/i, /gasping/i, /struggling to breathe/i] },
   { id: 'RF-04', label: 'Sudden weakness or numbness on one side of the body', citation: 'NHS — Stroke symptoms: weakness or numbness down one side', citationUrl: 'https://www.nhs.uk/conditions/stroke/symptoms/', screeningKey: 'oneSidedWeakness', patterns: [/one side/i, /left side.{0,30}(weak|numb)/i, /right side.{0,30}(weak|numb)/i] },
   { id: 'RF-05', label: 'Face drooping on one side', citation: 'NHS — Stroke symptoms: face weakness, one side of face may droop', citationUrl: 'https://www.nhs.uk/conditions/stroke/symptoms/', screeningKey: 'faceDroop', patterns: [/face.{0,20}(droop|slant|weak)/i, /face.{0,20}(one side|one half)/i] },
@@ -57,14 +57,14 @@ export interface RedFlagResult {
  * Free-text matching is negation-aware so "I do not have chest pain" does not
  * count as chest pain. This is a narrow safety measure, not general NLU.
  */
-const NEGATORS = /\b(no|not|denies|denied|without|never|none|isn'?t|aren'?t|wasn'?t|weren'?t|don'?t|doesn'?t|didn'?t|can'?t|cannot|ain'?t)\b/i;
-
 function hasPositiveMention(text: string, pattern: RegExp): boolean {
-  const m = pattern.exec(text);
-  if (!m) return false;
-  // Look at up to 40 chars before the match for a negator that likely applies to it.
-  const before = text.slice(Math.max(0, m.index - 40), m.index);
-  return !NEGATORS.test(before);
+  return text.split(/[,.!?;]|\bbut\b|\band\b/i).some(clause => {
+    for (const m of clause.matchAll(new RegExp(pattern.source, 'gi'))) {
+      const before = clause.slice(0, m.index).trim();
+      if (!/(?:\bno|\bwithout|\bdenies|\b(?:do not|don't|does not|doesn't) have)\s*$/i.test(before)) return true;
+    }
+    return false;
+  });
 }
 
 export function evaluateRedFlags(screening: Screening, freeText: string[] = []): RedFlagResult {
@@ -75,9 +75,8 @@ export function evaluateRedFlags(screening: Screening, freeText: string[] = []):
     if (byScreening || byText) triggered.push({ id: rule.id, label: rule.label, citation: rule.citation, citationUrl: rule.citationUrl });
   }
   const missingSafety: string[] = [];
-  const critical = ['RF-03', 'RF-04', 'RF-05', 'RF-06', 'RF-16'];
-  for (const rule of RED_FLAG_RULES.filter(r => critical.includes(r.id))) {
-    if (rule.screeningKey && screening.answers[rule.screeningKey] === 'unknown') missingSafety.push(rule.label);
+  for (const rule of RED_FLAG_RULES) {
+    if (rule.screeningKey && !['yes', 'no'].includes(screening.answers[rule.screeningKey])) missingSafety.push(rule.label);
   }
   return { triggered, missingSafety, ruleVersion: RULE_VERSION };
 }

@@ -15,6 +15,10 @@ interface EvalCase {
 const sc = (answers: Record<string, Answer>, extra: Partial<Screening> = {}): Partial<Screening> => ({
   ...emptyScreening(), answers: { ...emptyScreening().answers, ...answers }, ...extra,
 });
+const complete = (extra: Partial<Screening> = {}): Partial<Screening> => ({
+  ...emptyScreening(), adult: 'yes',
+  answers: Object.fromEntries(Object.keys(emptyScreening().answers).map(k => [k, 'no' as Answer])), ...extra,
+});
 
 /** 20 scripted cases: urgent, routine, and ambiguous. No LLM — tests deterministic logic only. */
 export const EVAL_CASES: EvalCase[] = [
@@ -29,14 +33,14 @@ export const EVAL_CASES: EvalCase[] = [
   { name: 'Vomiting blood', expected: 'emergency', screening: sc({}), text: ['I am vomiting blood'] },
   { name: 'Suicidal thoughts', expected: 'emergency', screening: sc({ selfHarm: 'yes' }), text: [] },
   { name: 'Overdose', expected: 'emergency', screening: sc({ overdose: 'yes' }), text: [] },
-  { name: 'Routine headache, exam needed', expected: 'in-person', screening: sc({}, { physicalExam: 'yes' }), text: ['headache for 2 days'] },
-  { name: 'Routine cough, no exam needed', expected: 'video', screening: sc({}, { physicalExam: 'no' }), text: ['dry cough for 3 days'] },
-  { name: 'Routine follow-up', expected: 'video', screening: sc({}, { purpose: 'follow-up', physicalExam: 'no' }), text: ['follow up on my sugar'] },
+  { name: 'Routine headache, completed screening, exam needed', expected: 'in-person', screening: complete({ physicalExam: 'yes' }), text: ['headache for 2 days'] },
+  { name: 'Routine cough, completed screening, no exam requested', expected: 'video', screening: complete({ physicalExam: 'no' }), text: ['dry cough for 3 days'] },
+  { name: 'Routine follow-up, completed screening', expected: 'video', screening: complete({ purpose: 'follow-up', physicalExam: 'no' }), text: ['follow up on my sugar'] },
   { name: 'Exam unsure -> clarification', expected: 'clarification', screening: sc({}, { physicalExam: 'unknown' }), text: ['stomach pain'] },
-  { name: 'Negated chest pain, no red flag', expected: 'video', screening: sc({}, { physicalExam: 'no' }), text: ['I do not have chest pain, just a sore throat'] },
+  { name: 'Negated chest pain, completed screening', expected: 'video', screening: complete({ physicalExam: 'no' }), text: ['I do not have chest pain, just a sore throat'] },
   { name: 'Report review -> clarification', expected: 'clarification', screening: sc({}, { purpose: 'report-review', physicalExam: 'unknown' }), text: [] },
-  { name: 'Safety answers missing -> clarification', expected: 'clarification', screening: sc({}, { physicalExam: 'unknown' }), text: ['I feel weak'] },
-  { name: 'Rash + fever, exam yes', expected: 'in-person', screening: sc({}, { physicalExam: 'yes' }), text: ['rash and fever for 1 day'] },
+  { name: 'Safety answers missing despite no exam request -> clarification', expected: 'clarification', screening: sc({}, { adult: 'yes', physicalExam: 'no' }), text: ['I feel weak'] },
+  { name: 'Rash + fever, completed screening, exam yes', expected: 'in-person', screening: complete({ physicalExam: 'yes' }), text: ['rash and fever for 1 day'] },
   { name: 'Chest pain spreading to arm', expected: 'emergency', screening: sc({}), text: ['chest pain spreading to my left arm'] },
 ];
 
@@ -59,7 +63,7 @@ export function runSync(): EvalReport {
 export async function runEvaluation(): Promise<EvalReport> { return runSync(); }
 
 export function latestReport(): EvalReport | null {
-  const row = getDb().prepare('SELECT * FROM evaluations ORDER BY generated_at DESC LIMIT 1').get() as
+  const row = getDb().prepare('SELECT * FROM evaluations WHERE rule_version = ? ORDER BY generated_at DESC LIMIT 1').get(RULE_VERSION) as
     { generated_at: string; rule_version: string; passed: number; total: number; results: string } | undefined;
   if (!row) return null;
   return { generatedAt: row.generated_at, ruleVersion: row.rule_version, passed: row.passed, total: row.total, results: JSON.parse(row.results) };
