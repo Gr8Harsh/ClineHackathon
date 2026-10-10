@@ -9,7 +9,7 @@ import { extractFields } from './domain/briefing.ts';
 import { parseLabReport } from './domain/documents.ts';
 import { decideCareRoute } from './rules/careRoute.ts';
 import { listDoctors, createProposal, approveProposal, bookSlot, bookingForEncounter, httpError } from './domain/booking.ts';
-import { pickNextQuestion, parseAnswer } from './domain/intake.ts';
+import { pickNextQuestion, parseAnswer, intakeComplete } from './domain/intake.ts';
 import { recentTraces, trace } from './trace.ts';
 import { uuid, nowIso } from './lib/ids.ts';
 import { runAgentTurn, isAgentConfigured, setConfirmationToken } from './agent/runAgent.ts';
@@ -47,24 +47,29 @@ function snapshot(encounterId: string): Snapshot {
   return { encounter: enc, decision, booking };
 }
 
-/** Guided mode: deterministic assistant that asks the next needed question. No LLM. */
-function guidedReply(encounterId: string): Message {
+/** Guided mode: conversational deterministic assistant. No LLM. */
+function guidedReply(encounterId: string, userText: string): Message {
   const enc = getEncounter(encounterId)!;
-  const q = pickNextQuestion(enc);
-  let reply: string;
   const decision = snapshot(encounterId).decision;
+  let reply: string;
+
   if (decision.route === 'emergency') {
     reply = decision.explanation;
-  } else if (q) {
-    reply = q.text;
   } else {
-    const d = snapshot(encounterId).decision;
-    reply = `Thank you. Here is where things stand: ${d.title}. ${d.explanation}`;
+    const q = pickNextQuestion(enc);
+    if (q) {
+      reply = q.text;
+    } else if (!intakeComplete(enc)) {
+      reply = 'Thank you. Please also complete the safety check below so the system can suggest the right kind of care.';
+    } else {
+      reply = 'Thanks — your summary is ready for the doctor. Complete the safety check below, then you can choose a doctor and book a time.';
+    }
   }
+
   const message: Message = { id: uuid(), role: 'assistant', text: reply, language: 'en', translation: 'original', createdAt: nowIso() };
   enc.messages.push(message);
   saveEncounter(enc);
-  trace('guided.reply', 'completed', 'Guided-mode deterministic follow-up (no LLM used)', 'application');
+  trace('guided.reply', 'completed', 'Guided-mode conversational follow-up (no LLM used)', 'application');
   return message;
 }
 
@@ -104,13 +109,26 @@ app.post('/api/encounters/:id/messages', async (req, res, next) => {
     const pending = pickNextQuestion(enc);
     const previous = enc.messages.at(-1);
     const answer = parseAnswer(text);
-    if (previous?.role === 'assistant' && pending && previous.text === pending.text && answer) {
-      if (pending.type === 'safety' && pending.key) enc.screening.answers[pending.key] = answer;
-      if (pending.type === 'exam') enc.screening.physicalExam = answer;
-      if (pending.type === 'adult') enc.screening.adult = answer;
-    }
+    const isAnswer = previous?.role === 'assistant' && pending && previous.text === pending.text;
+
     const patientMsg: Message = { id: uuid(), role: 'patient', text, language: enc.language, translation: 'original', createdAt: nowIso() };
     enc.messages.push(patientMsg);
+
+    // Apply the answer to the pending question (structured answers) or the field being asked (free text).
+    if (isAnswer) {
+      if (pending.type === 'adult' && answer) enc.screening.adult = answer;
+      if (pending.type === 'exam' && answer) enc.screening.physicalExam = answer;
+      if (pending.type === 'field' && pending.key) {
+        const field = enc.fields.find(f => f.key === pending.key);
+        if (field) {
+          field.value = ['no', 'none', 'nil', 'nahi', 'নাই'].includes(text.trim().toLowerCase()) ? 'None' : text.trim();
+          field.sourceId = patientMsg.id;
+          field.transformation = 'none';
+          field.verification = 'unverified';
+        }
+      }
+    }
+
     const fields = extractFields(enc.messages);
     enc.fields = fields.map(f => {
       const old = enc.fields.find(o => o.key === f.key);
@@ -119,12 +137,14 @@ app.post('/api/encounters/:id/messages', async (req, res, next) => {
     saveEncounter(enc);
     const emergency = snapshot(enc.id).decision.route === 'emergency';
     let reply: Message;
-    try { reply = isAgentConfigured() && !emergency ? await runAgentTurn(enc.id, text, enc.language) : guidedReply(enc.id); }
+    try { reply = isAgentConfigured() && !emergency ? await runAgentTurn(enc.id, text, enc.language) : guidedReply(enc.id, text); }
     catch {
       trace('agent.turn', 'failed', 'Language service unavailable; guided fallback used');
-      reply = guidedReply(enc.id);
+      reply = guidedReply(enc.id, text);
     }
-    res.json({ message: reply, snapshot: snapshot(enc.id) });
+    const next = emergency ? null : pickNextQuestion(getEncounter(enc.id)!);
+    const prompt = next ? { kind: next.kind } : null;
+    res.json({ message: reply, snapshot: snapshot(enc.id), prompt });
   } catch (err) { next(err); }
 });
 

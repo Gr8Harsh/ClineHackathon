@@ -21,7 +21,7 @@ const port = Number(process.env.QA_PORT ?? 3017);
 const debugPort = Number(process.env.QA_DEBUG_PORT ?? 9237);
 const base = `http://127.0.0.1:${port}`;
 const env = { ...process.env, PORT: String(port), SEHAT_DB: join(temp, 'demo.db') };
-delete env.ANTHROPIC_API_KEY; delete env.SEHAT_TEST;
+  delete env.CLINE_API_KEY; delete env.SEHAT_TEST;
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], { cwd: root, env, stdio: 'pipe' });
 let serverLog = '';
 server.stderr.on('data', b => { serverLog += b; });

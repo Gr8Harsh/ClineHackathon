@@ -15,7 +15,7 @@ export function hasConfirmationToken(encounterId: string): boolean {
 const LANG_NAME: Record<Language, string> = { en: 'English', hi: 'Hindi', as: 'Assamese' };
 
 export function isAgentConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.CLINE_API_KEY);
 }
 
 /**
@@ -31,9 +31,9 @@ export async function runAgentTurn(encounterId: string, userText: string, langua
   const tools = buildTools(encounterId, () => confirmationTokens.get(encounterId) ?? null);
 
   const agent = new Agent({
-    providerId: 'anthropic',
-    modelId: process.env.CLINE_MODEL ?? 'claude-sonnet-4-6',
-    apiKey: process.env.ANTHROPIC_API_KEY,
+    providerId: 'cline',
+    modelId: process.env.CLINE_MODEL ?? 'anthropic/claude-sonnet-4.6',
+    apiKey: process.env.CLINE_API_KEY,
     systemPrompt: AGENT_SYSTEM_PROMPT + `\nPatient language: ${LANG_NAME[language]}.`,
     tools,
     maxIterations: 8,

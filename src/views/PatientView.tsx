@@ -43,6 +43,7 @@ export function PatientView({ active }: { active: boolean }) {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [highlight, setHighlight] = useState('');
   const [answer, setAnswer] = useState('');
+  const [prompt, setPrompt] = useState<{ kind: 'yesno' | 'text' } | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [fresh, setFresh] = useState(false);
   const operation = useRef(false);
@@ -114,7 +115,7 @@ export function PatientView({ active }: { active: boolean }) {
     if (!encounterId || !trimmed || busy || !fresh) return;
     void run(async () => {
       const res = await api.sendMessage(encounterId, trimmed);
-      setSnapshot(res.snapshot); setInput('');
+      setSnapshot(res.snapshot); setInput(''); setPrompt(res.prompt ?? null);
     });
   }
 
@@ -185,13 +186,13 @@ export function PatientView({ active }: { active: boolean }) {
   if (!snapshot) {
     return <section className="card welcome">
       <div className="body stack">
-        <h1>Prepare for a consultation</h1>
-        <p>Choose a language. Original messages are preserved. Guided mode does not provide general translation; a configured language service does not prove successful translation. Available English renderings remain unverified.</p>
+        <h1>Talk to SEHAT</h1>
+        <p>Describe what's wrong in your own words. SEHAT asks a few questions, then prepares a clear summary for a doctor — without ever guessing what it doesn't know.</p>
         <div className="lang-choices">
           {LANGS.map(l => <button key={l.code} lang={l.code} className="btn btn-primary" disabled={busy || restoring} onClick={() => start(l.code)}>{l.label}</button>)}
         </div>
-        {(busy || restoring) && <p role="status">{restoring ? 'Restoring saved encounter…' : 'Creating encounter…'}</p>}
-        {error && <div className="notice" role="alert">{error} <button className="btn btn-ghost" disabled={restoring || busy} onClick={() => setRefresh(r => r + 1)}>Retry saved encounter</button></div>}
+        {(busy || restoring) && <p role="status">{restoring ? 'Restoring saved conversation…' : 'Starting…'}</p>}
+        {error && <div className="notice" role="alert">{error} <button className="btn btn-ghost" disabled={restoring || busy} onClick={() => setRefresh(r => r + 1)}>Retry</button></div>}
       </div>
     </section>;
   }
@@ -200,16 +201,48 @@ export function PatientView({ active }: { active: boolean }) {
   const emergency = snapshot.decision.route === 'emergency';
   const pendingQuestion = enc.clarification && !enc.clarification.answer ? enc.clarification : null;
   const disabled = busy || restoring || !fresh;
+  const hasPatientMessage = enc.messages.some(m => m.role === 'patient');
 
-  return <>
+  return <div className="patient-layout">
     <CareRouteBanner decision={snapshot.decision} booking={snapshot.booking} />
     {error && <div className="notice" role="alert">{error}</div>}
-    {restoring && <p role="status">Refreshing the encounter. Editing and booking are temporarily disabled.</p>}
-    <div className="row">
-      <span className="empty">Encounter {enc.id.slice(0, 8)} · {LANGS.find(l => l.code === enc.language)?.label}</span>
-      <button className="btn btn-ghost btn-sm" disabled={busy || restoring} onClick={() => setRefresh(r => r + 1)}>Refresh encounter</button>
-      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={reset}>Start a new synthetic encounter</button>
-    </div>
+    {restoring && <p role="status">Refreshing the encounter…</p>}
+
+    <section className="card chat chat-hero" aria-label="Conversation">
+      <header>Talk to SEHAT <span className="sub">{LANGS.find(l => l.code === enc.language)?.label}</span></header>
+      <div className="scroll" ref={scrollRef} aria-live="polite">
+        {enc.messages.map(m => <div key={m.id} id={`msg-${m.id}`} tabIndex={-1} lang={m.language}
+          className={`msg ${m.role} ${highlight === `msg-${m.id}` ? 'msg-hl' : ''}`}>
+          <MessageEvidence message={m} />
+        </div>)}
+        {busy && <p className="empty" role="status">Thinking…</p>}
+      </div>
+      {prompt?.kind === 'yesno' && !emergency && !snapshot.booking && (
+        <div className="quick-replies" role="group" aria-label="Quick answers">
+          <button className="chip" disabled={disabled} onClick={() => send('yes')}>Yes</button>
+          <button className="chip" disabled={disabled} onClick={() => send('no')}>No</button>
+          <button className="chip" disabled={disabled} onClick={() => send('unsure')}>Not sure</button>
+        </div>
+      )}
+      {!emergency && !snapshot.booking && enc.messages.length <= 1 && (
+        <div className="chips" aria-label="Synthetic example messages">
+          {STARTERS[enc.language].map(s => <button key={s} lang={enc.language} className="chip" disabled={disabled} onClick={() => send(s)}>{s}</button>)}
+        </div>
+      )}
+      <form className="composer" onSubmit={e => { e.preventDefault(); send(input); }}>
+        <label className="sr-only" htmlFor="intake-input">Describe what is wrong</label>
+        <input id="intake-input" lang={enc.language} maxLength={4000} value={input} disabled={disabled}
+          placeholder={emergency ? 'Seek emergency help now — routine chat is paused' : 'Type what’s wrong, in your own words…'} onChange={e => setInput(e.target.value)} />
+        <button className="btn btn-primary" disabled={disabled || !input.trim()}>Send</button>
+      </form>
+    </section>
+
+    {emergency && <section className="card emergency-card" role="alert">
+      <div className="body">
+        <h2>Do not wait for an appointment</h2>
+        <p>Call your local emergency number or go to the nearest emergency department now. Routine booking is unavailable while emergency warning signs are recorded.</p>
+      </div>
+    </section>}
 
     {pendingQuestion && <section className="card question-card">
       <header>Your doctor asked a question</header>
@@ -219,57 +252,44 @@ export function PatientView({ active }: { active: boolean }) {
         void run(async () => { setSnapshot(await api.answerClarification(enc.id, answer.trim())); setAnswer(''); });
       }}>
         <p lang="en"><strong>{pendingQuestion.question}</strong></p>
-        <p className="empty">The question is shown in English as typed by the doctor; no translation was performed.</p>
+        <p className="empty">Shown in English as typed by the doctor; no translation was performed.</p>
         <label className="input-label" htmlFor="clarification-answer">Your answer, in your own language</label>
         <textarea id="clarification-answer" lang={enc.language} rows={3} maxLength={4000} value={answer} disabled={disabled} onChange={e => setAnswer(e.target.value)} />
         <button className="btn btn-primary" disabled={disabled || !answer.trim()}>Send answer to doctor</button>
       </form>
     </section>}
 
-    <div className="grid-2">
-      <div className="stack">
-        <section className="card chat" aria-label="Intake conversation">
-          <header>Intake conversation <span className="sub">original language shown</span></header>
-          <div className="scroll" ref={scrollRef} aria-live="polite">
-            {enc.messages.map(m => <div key={m.id} id={`msg-${m.id}`} tabIndex={-1} lang={m.language}
-              className={`msg ${m.role} ${highlight === `msg-${m.id}` ? 'msg-hl' : ''}`}>
-              <MessageEvidence message={m} />
-            </div>)}
-            {busy && <p className="empty" role="status">Working…</p>}
-          </div>
-          {!snapshot.booking && !emergency && <div className="chips" aria-label="Synthetic example messages">
-            {STARTERS[enc.language].map(s => <button key={s} lang={enc.language} className="chip" disabled={disabled} onClick={() => setInput(s)}>{s}</button>)}
-          </div>}
-          <form className="composer" onSubmit={e => { e.preventDefault(); send(input); }}>
-            <label className="sr-only" htmlFor="intake-input">Describe what is wrong</label>
-            <input id="intake-input" lang={enc.language} maxLength={4000} value={input} disabled={disabled}
-              placeholder="Describe what is wrong, in your own words…" onChange={e => setInput(e.target.value)} />
-            <button className="btn btn-primary" disabled={disabled || !input.trim()}>Send</button>
-          </form>
-        </section>
-
-        {emergency ? <section className="card emergency-card" role="alert">
-          <div className="body">
-            <h2>Do not wait for an appointment</h2>
-            <p>Call your local emergency number or go to the nearest emergency department now. Routine booking is unavailable while emergency warning signs are recorded.</p>
-          </div>
-        </section> : snapshot.booking ? null : bookable ? <DoctorPicker
-          doctors={doctors} state={doctorState} error={doctorError} onLoad={loadDoctors} onPick={pickSlot}
-          proposal={proposal} onConfirm={confirmAndBook} onCancel={() => setProposal(null)} busy={disabled}
-        /> : <section className="card"><div className="body"><p className="notice">
-          Booking is unavailable until the routing questions are answered and the server returns a video or in-person route. Unanswered items are not treated as “no”.
-        </p></div></section>}
-
-        <DocumentPanel documents={enc.documents} busy={disabled} onUpload={uploadDoc} />
-      </div>
-
-      <div className="stack">
+    <details className="card" open={hasPatientMessage}>
+      <summary>Your consultation summary</summary>
+      <div className="body">
         <SummaryPanel fields={enc.fields} messages={enc.messages} busy={disabled} onSource={showSource}
           onConfirm={key => void run(async () => setSnapshot(await api.confirmField(enc.id, key)))} />
+      </div>
+    </details>
+
+    <details className="card">
+      <summary>Safety check (required before booking)</summary>
+      <div className="body">
         <ScreeningPanel screening={enc.screening} busy={disabled}
           onChange={body => void run(async () => setSnapshot(await api.setScreening(enc.id, body)))} />
-        <TracePanel active={active} />
       </div>
+    </details>
+
+    {emergency ? null : bookable ? (
+      <DoctorPicker doctors={doctors} state={doctorState} error={doctorError} onLoad={loadDoctors} onPick={pickSlot}
+        proposal={proposal} onConfirm={confirmAndBook} onCancel={() => setProposal(null)} busy={disabled} />
+    ) : null}
+
+    <details className="card">
+      <summary>Upload a lab report (optional)</summary>
+      <div className="body"><DocumentPanel documents={enc.documents} busy={disabled} onUpload={uploadDoc} /></div>
+    </details>
+
+    <TracePanel active={active} />
+
+    <div className="row patient-actions">
+      <button className="btn btn-ghost btn-sm" disabled={busy || restoring} onClick={() => setRefresh(r => r + 1)}>Refresh encounter</button>
+      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={reset}>Start a new synthetic encounter</button>
     </div>
-  </>;
+  </div>;
 }

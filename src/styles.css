@@ -211,3 +211,17 @@ details.card > summary { padding: 12px 16px; cursor: pointer; font-weight: 600; 
   .screening-grid { grid-template-columns: 1fr; }
   .msg { max-width: 100%; }
 }
+
+/* Chat-first single-column patient experience */
+.patient-layout { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+.chat-hero { min-height: 420px; }
+.chat-hero .scroll { max-height: 55vh; }
+.chat-hero .msg { max-width: 82%; }
+.quick-replies { display: flex; gap: 8px; padding: 0 16px 10px; flex-wrap: wrap; }
+.quick-replies .chip { font-size: 14px; padding: 6px 16px; background: var(--brand); border-color: var(--brand); color: #fff; }
+.quick-replies .chip:hover { background: #0f5a50; }
+.patient-actions { justify-content: flex-end; padding: 4px 0 0; }
+details.card > summary { list-style: none; position: relative; padding-right: 28px; }
+details.card > summary::after { content: '▸'; position: absolute; right: 14px; transition: transform 0.15s; }
+details.card[open] > summary::after { transform: rotate(90deg); }
+details.card .body { padding-top: 8px; }

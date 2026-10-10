@@ -38,7 +38,7 @@ The frontend flow and booking safeguards still need the remaining repairs. The d
 
 ### Optional live language service
 
-Copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY` locally. `CLINE_MODEL` defaults to `claude-sonnet-4-6`. Without a key the app uses guided mode. An API key being configured does not establish that a live call succeeded. Keep secrets server-side; never use a frontend `VITE_*` variable for them.
+Copy `.env.example` to `.env` and set `CLINE_API_KEY` locally. `CLINE_MODEL` defaults to `anthropic/claude-sonnet-4.6`. Without a key the app uses guided mode. An API key being configured does not establish that a live call succeeded. Keep secrets server-side; never use a frontend `VITE_*` variable for them.
 
 Live translation and SDK integration are not yet verified end-to-end. Guided mode must not be presented as general translation.
 

@@ -44,7 +44,7 @@ From your clone root run `npm ci`, then `npm run dev`. Frontend normally uses 12
 
 No new component framework, router, icon package, state library, or testing framework without agreement. Use existing React/CSS/browser capabilities. Use `npm ci` to avoid uncoordinated lockfile changes.
 
-Optional backend variables: `ANTHROPIC_API_KEY`, `CLINE_MODEL`. Never expose secrets in frontend code, browser storage, screenshots, Git, or `VITE_*` variables. Without a key this is guided mode, not live AI translation. A configured key is not proof of a successful live call.
+Optional backend variables: `CLINE_API_KEY`, `CLINE_MODEL`. Never expose secrets in frontend code, browser storage, screenshots, Git, or `VITE_*` variables. Without a key this is guided mode, not live AI translation. A configured key is not proof of a successful live call.
 
 ## Git workflow
 
