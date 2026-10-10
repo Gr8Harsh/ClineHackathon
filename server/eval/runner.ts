@@ -34,7 +34,7 @@ export const EVAL_CASES: EvalCase[] = [
   { name: 'Suicidal thoughts', expected: 'emergency', screening: sc({ selfHarm: 'yes' }), text: [] },
   { name: 'Overdose', expected: 'emergency', screening: sc({ overdose: 'yes' }), text: [] },
   { name: 'Routine headache, completed screening, exam needed', expected: 'in-person', screening: complete({ physicalExam: 'yes' }), text: ['headache for 2 days'] },
-  { name: 'Routine cough, completed screening, no exam requested', expected: 'video', screening: complete({ physicalExam: 'no' }), text: ['dry cough for 3 days'] },
+  { name: 'Routine cough, completed screening, legacy video mode', expected: 'video', screening: complete({ physicalExam: 'no' }), text: ['dry cough for 3 days'] },
   { name: 'Routine follow-up, completed screening', expected: 'video', screening: complete({ purpose: 'follow-up', physicalExam: 'no' }), text: ['follow up on my sugar'] },
   { name: 'Exam unsure -> clarification', expected: 'clarification', screening: sc({}, { physicalExam: 'unknown' }), text: ['stomach pain'] },
   { name: 'Negated chest pain, completed screening', expected: 'video', screening: complete({ physicalExam: 'no' }), text: ['I do not have chest pain, just a sore throat'] },

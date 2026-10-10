@@ -4,10 +4,6 @@ import { api } from '../api.ts';
 
 type QuestionCatalog = Awaited<ReturnType<typeof api.screeningQuestions>>;
 
-const EXAM: { key: 'yes' | 'no' | 'unknown'; label: string }[] = [
-  { key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }, { key: 'unknown', label: 'Not sure' },
-];
-
 function Toggle({ value, onChange, label, disabled }: { value: Answer; onChange: (a: Answer) => void; label: string; disabled: boolean }) {
   return (
     <span className="answer-toggle" role="group" aria-label={label}>
@@ -58,26 +54,7 @@ export function ScreeningPanel({
         <select id="visit-purpose" value={screening.purpose} disabled={busy} onChange={e => onChange({ purpose: e.target.value as Screening['purpose'] })}>
           <option value="new-concern">New concern</option><option value="report-review">Report review</option><option value="follow-up">Follow-up</option>
         </select>
-        <div className="screening-grid">
-          <span className="q">Is the patient an adult?</span>
-          <Toggle label="Is the patient an adult?" value={screening.adult} disabled={busy} onChange={adult => onChange({ adult })} />
-        </div>
-        <div className="screening-grid" style={{ marginBottom: 10 }}>
-          <span className="q">Might a doctor need to examine you in person?</span>
-          <span className="answer-toggle" role="group" aria-label="Might a doctor need to examine you in person?">
-            {EXAM.map(o => (
-              <button
-                key={o.key}
-                disabled={busy}
-                aria-pressed={screening.physicalExam === o.key}
-                className={screening.physicalExam === o.key ? `on-${o.key}` : ''}
-                onClick={() => onChange({ physicalExam: o.key })}
-              >
-                {o.label}
-              </button>
-            ))}
-          </span>
-        </div>
+        <p className="empty">Age is optional consultation information, not an eligibility gate. The application coordinates care mode; patients do not decide examination suitability.</p>
         <p className="empty" style={{ margin: '0 0 8px' }}>
           Answer “No” to a red-flag question only if it is truly absent. An unanswered question stays unknown and is shown as missing — it is never treated as “no”.
         </p>

@@ -25,22 +25,22 @@ export function decideCareRoute(
   }
 
   const missing = [...missingSafety];
-  if (screening.adult !== 'yes') missing.push('Adult eligibility: this illustrative workflow is adults-only');
-  if (screening.physicalExam === 'unknown') missing.push('Whether an examination may be needed');
   if (missing.length) {
     return { route: 'clarification', title: 'More information needed',
-      explanation: 'Screening is incomplete, uncertain, or outside this adult demo’s scope. Unknown is not no. Ask a clinician if unsure; do not delay urgent care.',
+      explanation: 'Safety screening is incomplete or uncertain. Unknown is not no. Ask a clinician if unsure; do not delay urgent care.',
       triggered: [], missing, ruleVersion };
   }
 
-  if (screening.physicalExam === 'yes') {
+  // Legacy clinician mode flags remain readable. With no clinician mode decision,
+  // conservatively coordinate an in-person assessment; never ask patients to decide.
+  if (screening.physicalExam !== 'no') {
     if (!availability.inPerson) return { route: 'clarification', title: 'No suitable appointment available',
       explanation: 'No in-person appointment is available. Availability cannot downgrade the requested care mode. Contact a clinic directly.',
       triggered: [], missing: [], ruleVersion };
     return {
       route: 'in-person',
       title: 'In-person consultation',
-      explanation: 'You indicated an examination may be needed. An in-person appointment is available. This is an illustrative coordination choice, not validated triage. No listed warning sign was identified; this does not rule out an emergency.',
+      explanation: 'The application offers an in-person clinician assessment when examination suitability is unresolved. This is a conservative coordination policy, not validated triage or an assurance that there is no emergency.',
       triggered: [], missing: missingSafety, ruleVersion,
     };
   }
@@ -49,7 +49,7 @@ export function decideCareRoute(
     if (availability.video) {
       return {
         route: 'video', title: 'Video consultation possible',
-        explanation: 'You answered the listed screening questions and indicated no examination is needed. Video is available, but a clinician must assess suitability. This is not a diagnosis, validated triage, or assurance that there is no emergency.',
+        explanation: 'A video consultation is available, so this first consultation may not need a long journey. You answered the listed screening questions and indicated no examination is needed; the doctor may still ask you to come in. A clinician must assess suitability. This is not a diagnosis, validated triage, or assurance that there is no emergency.',
         triggered: [], missing: missingSafety, ruleVersion,
       };
     }
