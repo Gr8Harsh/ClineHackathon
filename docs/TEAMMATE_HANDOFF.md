@@ -1,5 +1,7 @@
 # SEHAT OS — Frontend teammate / Cline handoff
 
+> **Phase 1 update:** the initial build blocker below has been fixed on `feat/backend-core`. Build, 24 tests, and 20 scripted cases pass. Read `BACKEND_CHECKPOINT_1.md` for the current screening API and explicit briefing format before integrating. The original handoff's status section records the initial scaffold baseline; booking safeguards and live translation remain unfinished.
+
 ## Start here
 
 You are the frontend implementation agent in a two-person hackathon team. Inspect the actual clone and present a short plan before editing. Repair the existing scaffold; do not recreate the project. Source repository: https://github.com/Gr8Harsh/ClineHackathon.
