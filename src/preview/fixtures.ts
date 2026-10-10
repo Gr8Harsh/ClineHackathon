@@ -1,15 +1,15 @@
 export type PreviewLanguage = 'EN' | 'HI' | 'AS';
 export type Scenario = 'routine' | 'emergency' | 'no-slots' | 'conflict' | 'expired';
 export type FieldId = 'concern' | 'duration' | 'history' | 'medications' | 'allergies';
-export type EvidenceField = { key: FieldId; label: string; value: string | null; sourceId: string | null };
+export type EvidenceField = { key: FieldId; label: string; value: string | null; sourceId: string | null; choiceSourceId?: string };
 export type ChatLine = { id: string; role: 'patient' | 'assistant'; text: string; language: PreviewLanguage };
 
 export const questions: { key: FieldId | 'document'; text: string; chips: string[] }[] = [
   { key: 'concern', text: 'What would you like the doctor to know? Tell me in your own words.', chips: ['I have had a headache', 'I want to discuss a report'] },
   { key: 'duration', text: 'How long has this been happening?', chips: ['Since today', 'For 3 days', 'For a few weeks', 'Not sure'] },
-  { key: 'history', text: 'Is there any medical history you would like to share?', chips: ['None to report', 'Not sure', 'Skip for now'] },
-  { key: 'medications', text: 'Are you taking any medicines regularly?', chips: ['None to report', 'Not sure', 'Skip for now'] },
-  { key: 'allergies', text: 'Do you have any allergies the doctor should know about?', chips: ['None to report', 'Not sure', 'Skip for now'] },
+  { key: 'history', text: 'Is there any medical history you would like to share?', chips: [] },
+  { key: 'medications', text: 'Are you taking any medicines regularly?', chips: [] },
+  { key: 'allergies', text: 'Do you have any allergies the doctor should know about?', chips: [] },
   { key: 'document', text: 'Do you have a lab report you would like to share? It is optional. I can show its source text alongside the extracted value.', chips: ['Add a text report', 'I don’t have a report'] },
 ];
 export const initialFields: EvidenceField[] = [

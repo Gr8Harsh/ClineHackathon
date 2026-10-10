@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650">
+ <rect width="1000" height="650" fill="white"/>
+ <g fill="#0f1f1a" font-family="Arial,sans-serif">
+  <text x="70" y="90" font-size="32">SYNTHETIC DEMO LAB REPORT</text>
+  <text x="70" y="145" font-size="22">Fictional patient - not for medical use</text>
+  <text x="70" y="250" font-size="30">Haemoglobin: 13.2 g/dL</text>
+  <text x="70" y="330" font-size="30">Fasting glucose: 118 mg/dL</text>
+  <text x="70" y="410" font-size="30">HbA1c: 7.4 %</text>
+  <text x="70" y="540" font-size="22">Unverified extraction. No medical interpretation.</text>
+ </g>
+</svg>

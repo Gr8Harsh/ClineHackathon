@@ -100,7 +100,17 @@ try {
   await cdp('Page.navigate', { url: base });
   await until(async () => (await text()).includes('UI preview'), 'redesigned preview');
   await screenshot('preview-chat-desktop');
-  for (const response of ['I have had a headache', 'For 3 days', 'None to report', 'Skip for now', 'Not sure', 'I don’t have a report']) {
+  assert.ok(!(await text()).includes('A question from your doctor'));
+  await click('Add report');
+  await js(`(async()=>{const svg=await fetch('/synthetic-report.svg').then(r=>r.blob());const u=URL.createObjectURL(svg);const bitmap=new Image();bitmap.src=u;await bitmap.decode();const c=document.createElement('canvas');c.width=1000;c.height=650;c.getContext('2d').drawImage(bitmap,0,0);const blob=await new Promise(r=>c.toBlob(r,'image/png'));const file=new File([blob],'synthetic-report.png',{type:'image/png'});const d=new DataTransfer();d.items.add(file);const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));window.qaSamplePng=c.toDataURL('image/png');URL.revokeObjectURL(u);})()`);
+  await until(async () => (await text()).includes('Review extracted values'), 'on-device image OCR', 90000);
+  assert.ok(await js(`document.querySelectorAll('input[aria-label="Observation value"]').length>=2`));
+  await click('View source line 3');
+  assert.ok(await js(`!!document.querySelector('[aria-label="Highlighted source region"]')`));
+  await click('Save reviewed report');
+  passed('Local image OCR extracts actual sample values and exposes original highlighted regions');
+  await click('Start a conversation');
+  for (const response of ['I have had a headache', 'For 3 days', 'No history to report', 'Skip for now', 'Not sure', 'I don’t have a report']) {
     await click(response);
   }
   await click('Review my notes');
@@ -110,6 +120,38 @@ try {
   assert.ok(await js(`!!document.querySelector('[role="dialog"]')`));
   assert.match(await text(), /I have had a headache/);
   await js(`document.querySelector('button[aria-label="Close dialog"]').click()`);
+  await js(`Array.from(document.querySelectorAll('button')).find(e=>e.textContent.trim()==='Answer in chat').click()`);
+  await click('Yes, I take some');
+  assert.match(await text(), /Which ones/);
+  await js(`(()=>{const e=document.querySelector('input[aria-label="Your answer"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'Synthetic medicine A');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await js(`document.querySelector('button[aria-label="Send answer"]').click()`);
+  await until(async () => (await text()).includes('Your consultation notes'), 'details summary');
+  assert.match(await text(), /Synthetic medicine A/);
+  const medsSource = await js(`Array.from(document.querySelectorAll('button')).filter(e=>e.textContent.includes('View source'))[3]?.outerHTML`);
+  assert.ok(medsSource);
+  await js(`Array.from(document.querySelectorAll('button')).filter(e=>e.textContent.includes('View source'))[3].click()`);
+  assert.match(await text(), /Yes, I take some/);
+  await js(`document.querySelector('button[aria-label="Close dialog"]').click()`);
+  await js(`Array.from(document.querySelectorAll('button')).filter(e=>e.textContent.trim()==='Correct answer')[3].click()`);
+  await click('No, I take none');
+  assert.match(await text(), /No regular medicines \(patient said none\)/);
+  assert.match(await text(), /Patient unsure/);
+  passed('Distinct yes/details, explicit no, unsure and skipped outcomes retain original sources');
+
+  // Minimal genuine PDF with a text layer, generated for the isolated test only.
+  const stream = 'BT /F1 18 Tf 40 220 Td (Haemoglobin: 13.2 g/dL) Tj ET';
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 300] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];
+  let pdf = '%PDF-1.4\n'; const offsets = [0];
+  objects.forEach((o,i)=>{offsets.push(Buffer.byteLength(pdf));pdf+=`${i+1} 0 obj\n${o}\nendobj\n`;});
+  const xref = Buffer.byteLength(pdf);pdf+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n ').join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  await js(`document.querySelector('[aria-label="Open profile menu"]').click()`); await click('Home'); await click('Add report');
+  await js(`(()=>{const bytes=Uint8Array.from(atob('${Buffer.from(pdf).toString('base64')}'),c=>c.charCodeAt(0));const d=new DataTransfer();d.items.add(new File([bytes],'test.pdf',{type:'application/pdf'}));const e=document.querySelector('input[aria-label="Choose report file"]');e.files=d.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(async () => (await text()).includes('Review extracted values'), 'PDF text extraction', 30000);
+  assert.equal(await js(`document.querySelector('input[aria-label="Observation value"]').value`), '13.2');
+  await click('View source line 1');
+  assert.ok(await js(`!!document.querySelector('[aria-label="Highlighted source region"]')`));
+  await click('Save reviewed report'); await click('Notes');
+  passed('PDF text layer preserves actual page coordinates without OCR');
   await click('Explore care'); await click('10:00 AM');
   assert.match(await text(), /no real slot is held/);
   await click('Not now');
@@ -118,14 +160,16 @@ try {
   assert.match(await text(), /No database booking/);
   await click('Open doctor preview');
   await fill('preview-question-doctor', 'Any blood thinners?');
-  await click('Send question'); await click('Patient');
+  await click('Send question');
+  async function previewRole(role) { await js(`document.querySelector('[aria-label="Open profile menu"]').click()`); await click(role); }
+  await previewRole('Patient');
   await fill('preview-answer-doctor', 'None reported');
   await until(() => js(`!document.querySelector('button[aria-label="Send clarification answer"]').disabled`), 'preview answer ready');
   await js(`document.querySelector('button[aria-label="Send clarification answer"]').click()`);
-  await click('Doctor'); assert.match(await text(), /Original patient answer: None reported/);
+  await previewRole('Doctor'); assert.match(await text(), /Original patient answer: None reported/);
   await screenshot('preview-doctor-desktop');
-  await click('Patient');
-  await js(`document.querySelector('details').open=true`);
+  await previewRole('Patient');
+  await click('Trace');
   await js(`(()=>{const e=document.getElementById('preview-scenario');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'emergency');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await until(async () => (await text()).includes('Seek emergency'), 'red emergency screen');
   assert.equal(await js(`document.querySelectorAll('nav,[role="dialog"]').length`), 0);
