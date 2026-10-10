@@ -160,7 +160,7 @@ export function PreviewApp() {
         <section className={cn('assistant-conversation', welcome && 'assistant-welcome')}>
           <div className="chat-scroll" aria-live="polite">{welcome ? <div className="assistant-welcome-content"><AssistantOrb /><h2>How are you feeling?</h2><p>A little space to share what’s on your mind.</p></div> : lines.map(line => <div key={line.id} className={cn('message-enter chat-message', line.role)}>
             {line.role === 'assistant' && <span className="assistant-ring" aria-hidden="true" />}
-            <div className="message-bubble"><p lang={line.role === 'patient' ? { EN: 'en', HI: 'hi', AS: 'as' }[line.language] : 'en'} className="evidence-line">{line.text}</p><small>{line.role === 'patient' ? 'You · original message' : 'Scripted assistant · UI fixture'}</small></div>
+            <div className="message-bubble"><p lang={line.role === 'patient' ? { EN: 'en', HI: 'hi', AS: 'as' }[line.language] : 'en'} className="evidence-line">{line.text}</p><small>{line.role === 'patient' ? 'You · original message' : 'Scripted assistant · UI fixture'}</small>{import.meta.env.DEV && line.role === 'assistant' && <small>fixture</small>}</div>
             {line.role === 'patient' && <Avatar patient />}
           </div>)}{chatAppointment && scenario !== 'no-slots' && <div className="chat-message assistant"><span className="assistant-ring" /><div className="message-bubble"><p>Your selected example appointment. Review the details before confirming.</p><AppointmentCard doctor={chatAppointment.doctor} time={chatAppointment.time} onBook={() => { setProposal(chatAppointment); setBookingError(''); }} /></div></div>}<div ref={end} /></div>
           <div className="chat-composer-area">
