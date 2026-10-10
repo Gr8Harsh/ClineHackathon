@@ -17,6 +17,11 @@ export function formatAppointment(iso: string): string {
 
 export function focusEvidence(id: string) {
   const element = document.getElementById(id);
+  let parent = element?.parentElement;
+  while (parent) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true;
+    parent = parent.parentElement;
+  }
   element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   element?.focus({ preventScroll: true });
 }

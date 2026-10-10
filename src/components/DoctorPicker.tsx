@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { AvailableDoctor, Proposal } from '../../shared/types.ts';
 import { formatAppointment, type LoadState } from '../ui.ts';
 
@@ -6,12 +7,19 @@ export function DoctorPicker({ doctors, state, error, onLoad, onPick, proposal, 
   onLoad: () => void; onPick: (slotId: string) => void; proposal: Proposal | null;
   onConfirm: () => void; onCancel: () => void; busy: boolean;
 }) {
-  const expired = proposal ? Date.parse(proposal.expiresAt) <= Date.now() : false;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!proposal) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [proposal]);
+  const expired = proposal ? !Number.isFinite(Date.parse(proposal.expiresAt)) || Date.parse(proposal.expiresAt) <= now : false;
   return <section className="card">
     <header>Find a doctor <span className="sub">fictional doctors · actual database availability</span></header>
     <div className="body stack">
       <div className="row">
-        <button className="btn btn-primary" disabled={busy} onClick={onLoad}>
+        <button className="btn btn-primary" disabled={busy || state === 'loading'} onClick={onLoad}>
           {state === 'loading' ? 'Loading slots…' : state === 'idle' ? 'Show available doctors' : 'Refresh available slots'}
         </button>
         <span className="empty">A proposal does not reserve a slot.</span>

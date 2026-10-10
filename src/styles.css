@@ -166,6 +166,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto
 button:disabled { cursor: not-allowed; opacity: 0.55; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .stack { display: grid; gap: 12px; }
+[hidden] { display: none !important; }
+.layout > div:not([hidden]) > .route-banner { margin-bottom: 12px; }
+.grid-2 > *, .doc-layout > * { min-width: 0; }
+.msg, .field-value, .booking-receipt, .trace, .doc-line { overflow-wrap: anywhere; }
+.card > header { flex-wrap: wrap; }
+.answer-toggle button { min-height: 32px; }
+.source-link { min-height: 32px; }
+.screening-grid .q { padding: 5px 0; }
 .grow { flex: 1; min-width: 200px; }
 .demo-notice { background: var(--info-soft); color: var(--info); border: 1px solid #b9d0ec; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
 .welcome { max-width: 620px; margin: 0 auto; width: 100%; }

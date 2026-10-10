@@ -43,7 +43,7 @@ export function DocumentPanel({ documents, busy, onUpload }: {
     <div className="body stack">
       <form className="stack" onSubmit={async e => {
         e.preventDefault();
-        if (await onUpload(name.trim(), text.trim())) setText('');
+        if (await onUpload(name.trim(), text)) setText('');
       }}>
         <label className="input-label" htmlFor="report-name">Report name</label>
         <input id="report-name" maxLength={120} required value={name} disabled={busy} onChange={e => setName(e.target.value)} />

@@ -1,5 +1,9 @@
 import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument, Answer, Screening } from '../shared/types.ts';
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = 'ApiError'; }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     signal: AbortSignal.timeout(90000),
@@ -9,12 +13,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try { const body = await res.json(); if (body.error) msg = body.error; } catch { /* ignore */ }
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json() as Promise<T>;
 }
 
 export const api = {
+  screeningQuestions: () => req<{ ruleVersion: string; questions: { key: string; text: string }[]; adultRequired: boolean }>('/api/screening/questions'),
   health: () => req<{ ok: boolean; agentMode: 'cline-sdk' | 'guided'; ruleVersion: string }>('/api/health'),
   createEncounter: (language: Language) => req<Snapshot>('/api/encounters', { method: 'POST', body: JSON.stringify({ language }) }),
   getEncounter: (id: string) => req<Snapshot>(`/api/encounters/${id}`),
