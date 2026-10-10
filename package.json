@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24.0.0" },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:server": "tsx watch --env-file-if-exists=.env server/index.ts",
@@ -16,9 +18,17 @@
   },
   "dependencies": {
     "@cline/sdk": "0.0.92",
+    "@radix-ui/react-dialog": "^1.2.0",
+    "@radix-ui/react-slot": "^1.4.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "express": "^5.1.0",
+    "lucide-react": "^1.55.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3",
     "zod": "^4.1.0"
   },
   "devDependencies": {

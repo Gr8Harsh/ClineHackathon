@@ -1,0 +1,31 @@
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
+
+@theme inline {
+  --color-background: #f8fafb;
+  --color-foreground: #172a2b;
+  --color-primary: #0f766e;
+  --color-primary-foreground: #ffffff;
+  --color-border: #e2e8f0;
+  --radius: 0.9rem;
+}
+
+.sehat-preview, .preview-dialog { font-family: Inter, "Segoe UI", "Nirmala UI", system-ui, sans-serif; line-height: 1.6; font-size: 15px; }
+.sehat-preview { min-height: 100dvh; background: #f8fafb; color: #243738; }
+.sehat-preview h1, .sehat-preview h2, .sehat-preview h3, .sehat-preview p, .preview-dialog h2, .preview-dialog p { margin: 0; }
+.sehat-preview h1, .sehat-preview h2, .sehat-preview h3, .preview-dialog h2 { font-family: inherit; }
+.sehat-preview button, .preview-dialog button { font-family: inherit; }
+.sehat-preview button, .preview-dialog button { cursor: pointer; font: inherit; }
+.sehat-preview input, .sehat-preview textarea, .sehat-preview select, .preview-dialog input { font: inherit; }
+.sehat-preview input, .sehat-preview textarea { width: 100%; color: #243738; }
+.sehat-preview :focus-visible, .preview-dialog :focus-visible { outline: 3px solid #0f766e; outline-offset: 3px; }
+.sehat-preview button:disabled { cursor: not-allowed; }
+.sehat-preview .chat-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+.sehat-preview .message-enter { animation: message-in 0.2s ease-out; }
+.sehat-preview .evidence-line { overflow-wrap: anywhere; }
+.preview-dialog-overlay { animation: fade-in 0.15s ease-out; }
+.preview-dialog { max-height: 90dvh; overflow-y: auto; }
+@keyframes message-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 420px) { .sehat-preview main > div:first-child button[aria-current], .sehat-preview main > div:first-child button { white-space: nowrap; } }
+@media (prefers-reduced-motion: reduce) { .sehat-preview *, .preview-dialog, .preview-dialog-overlay { animation: none !important; scroll-behavior: auto !important; } }

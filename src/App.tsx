@@ -3,10 +3,16 @@ import { api } from './api.ts';
 import { PatientView } from './views/PatientView.tsx';
 import { DoctorView } from './views/DoctorView.tsx';
 import { EvalView } from './views/EvalView.tsx';
+import { PreviewApp } from './preview/PreviewApp.tsx';
+import './preview/preview.css';
 
 type Tab = 'patient' | 'doctor' | 'eval';
 
 export function App() {
+  return new URLSearchParams(window.location.search).get('live') === '1' ? <LiveApp /> : <PreviewApp />;
+}
+
+function LiveApp() {
   const [tab, setTab] = useState<Tab>('patient');
   const [agentMode, setAgentMode] = useState<'cline-sdk' | 'guided' | null>(null);
   const [ruleVersion, setRuleVersion] = useState('');
