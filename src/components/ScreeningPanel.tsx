@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import type { Screening, Answer } from '../../shared/types.ts';
 import { api } from '../api.ts';
 
+type QuestionCatalog = Awaited<ReturnType<typeof api.screeningQuestions>>;
+
 const EXAM: { key: 'yes' | 'no' | 'unknown'; label: string }[] = [
   { key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }, { key: 'unknown', label: 'Not sure' },
 ];
@@ -25,13 +27,14 @@ function Toggle({ value, onChange, label, disabled }: { value: Answer; onChange:
 }
 
 export function ScreeningPanel({
-  screening, onChange, busy = false,
+  screening, onChange, busy = false, initialCatalog,
 }: {
   screening: Screening;
   onChange: (body: Parameters<typeof api.setScreening>[1]) => void;
   busy?: boolean;
+  initialCatalog?: QuestionCatalog;
 }) {
-  const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof api.screeningQuestions>> | null>(null);
+  const [catalog, setCatalog] = useState<QuestionCatalog | null>(initialCatalog ?? null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   useEffect(() => {
