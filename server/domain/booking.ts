@@ -15,6 +15,7 @@ export function listDoctors(mode?: 'video' | 'in-person'): AvailableDoctor[] {
   return docs.map(d => {
     const slots = db.prepare('SELECT * FROM slots WHERE doctor_id = ? ORDER BY starts_at').all(d.id) as unknown as { id: string; starts_at: string; mode: string }[];
     const available = slots
+      .filter(s => d.status === 'available' && (s.mode !== 'video' || d.video === 1))
       .filter(s => new Date(s.starts_at).getTime() > now && !booked.has(s.id))
       .filter(s => !mode || s.mode === mode)
       .slice(0, 8)

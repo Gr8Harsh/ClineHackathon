@@ -1,7 +1,5 @@
-import { Agent } from '@cline/sdk';
 import { Language, Message } from '../../shared/types.ts';
 import { getEncounter, saveEncounter } from '../domain/encounterStore.ts';
-import { buildTools, AGENT_SYSTEM_PROMPT } from './tools.ts';
 import { trace } from '../trace.ts';
 import { uuid, nowIso } from '../lib/ids.ts';
 
@@ -26,6 +24,7 @@ export function isAgentConfigured(): boolean {
  * UI shows genuine SDK tool use — not fabricated events.
  */
 export async function runAgentTurn(encounterId: string, userText: string, language: Language): Promise<Message> {
+  const [{ Agent }, { buildTools, AGENT_SYSTEM_PROMPT }] = await Promise.all([import('@cline/sdk'), import('./tools.ts')]);
   const encounter = getEncounter(encounterId);
   if (!encounter) throw new Error('encounter not found');
 

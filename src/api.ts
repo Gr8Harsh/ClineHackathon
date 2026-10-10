@@ -1,25 +1,31 @@
-import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument } from '../shared/types.ts';
+import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument, Answer, Screening } from '../shared/types.ts';
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = 'ApiError'; }
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
+    signal: AbortSignal.timeout(90000),
     headers: { 'content-type': 'application/json' },
     ...init,
   });
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try { const body = await res.json(); if (body.error) msg = body.error; } catch { /* ignore */ }
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json() as Promise<T>;
 }
 
 export const api = {
+  screeningQuestions: () => req<{ ruleVersion: string; questions: { key: string; text: string }[]; adultRequired: boolean }>('/api/screening/questions'),
   health: () => req<{ ok: boolean; agentMode: 'cline-sdk' | 'guided'; ruleVersion: string }>('/api/health'),
   createEncounter: (language: Language) => req<Snapshot>('/api/encounters', { method: 'POST', body: JSON.stringify({ language }) }),
   getEncounter: (id: string) => req<Snapshot>(`/api/encounters/${id}`),
   listEncounters: () => req<{ id: string; name: string; language: Language; createdAt: string }[]>('/api/encounters'),
   sendMessage: (id: string, text: string) => req<{ message: Message; snapshot: Snapshot }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify({ text }) }),
-  setScreening: (id: string, body: { key?: string; answer?: string; purpose?: string; physicalExam?: string }) => req<Snapshot>(`/api/encounters/${id}/screening`, { method: 'POST', body: JSON.stringify(body) }),
+  setScreening: (id: string, body: { key?: string; answer?: Answer; purpose?: Screening['purpose']; physicalExam?: Answer; adult?: Answer }) => req<Snapshot>(`/api/encounters/${id}/screening`, { method: 'POST', body: JSON.stringify(body) }),
   confirmField: (id: string, key: string) => req<Snapshot>(`/api/encounters/${id}/fields/${key}/confirm`, { method: 'POST', body: '{}' }),
   uploadDocument: (id: string, name: string, text: string) => req<{ document: LabDocument; snapshot: Snapshot }>(`/api/encounters/${id}/documents`, { method: 'POST', body: JSON.stringify({ name, text }) }),
   doctors: (mode?: 'video' | 'in-person') => req<AvailableDoctor[]>(`/api/doctors${mode ? `?mode=${mode}` : ''}`),

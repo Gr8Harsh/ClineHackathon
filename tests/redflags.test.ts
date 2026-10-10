@@ -8,6 +8,8 @@ const sc = (answers: Record<string, string>) => {
   for (const [k, v] of Object.entries(answers)) s.answers[k] = v as never;
   return s;
 };
+const complete = () => ({ ...emptyScreening(), adult: 'yes' as const,
+  answers: Object.fromEntries(Object.keys(emptyScreening().answers).map(k => [k, 'no' as const])) });
 
 test('rule set has between 15 and 20 rules, each with a citation', () => {
   assert.ok(RED_FLAG_RULES.length >= 15 && RED_FLAG_RULES.length <= 20, `expected 15-20 rules, got ${RED_FLAG_RULES.length}`);
@@ -46,7 +48,7 @@ test('care route: emergency always wins over routine routing', () => {
 });
 
 test('care route: no exam needed + video available -> video', () => {
-  const d = decideCareRoute({ ...emptyScreening(), physicalExam: 'no' }, ['cough'], { video: true, inPerson: true });
+  const d = decideCareRoute({ ...complete(), physicalExam: 'no' }, ['cough'], { video: true, inPerson: true });
   assert.equal(d.route, 'video');
 });
 
@@ -55,7 +57,31 @@ test('care route: exam unknown -> clarification, never a guess', () => {
   assert.equal(d.route, 'clarification');
 });
 
-test('care route: no video slots falls back to in-person', () => {
-  const d = decideCareRoute({ ...emptyScreening(), physicalExam: 'no' }, ['cough'], { video: false, inPerson: true });
-  assert.equal(d.route, 'in-person');
+test('care route: unavailable requested mode remains unresolved', () => {
+  const d = decideCareRoute({ ...complete(), physicalExam: 'no' }, ['cough'], { video: false, inPerson: true });
+  assert.equal(d.route, 'clarification');
+});
+
+test('all missing safety answers block routine routing even with exam preference', () => {
+  const d = decideCareRoute({ ...emptyScreening(), adult: 'yes', physicalExam: 'no' }, [], { video: true, inPerson: true });
+  assert.equal(d.route, 'clarification');
+  assert.equal(evaluateRedFlags(emptyScreening()).missingSafety.length, 18);
+});
+
+test('adult eligibility and every individual unknown block routine routing', () => {
+  const s = { ...complete(), physicalExam: 'no' as const };
+  assert.equal(decideCareRoute({ ...s, adult: 'no' }, [], { video: true, inPerson: true }).route, 'clarification');
+  for (const key of Object.keys(s.answers)) {
+    assert.equal(decideCareRoute({ ...s, answers: { ...s.answers, [key]: 'unknown' } }, [], { video: true, inPerson: true }).route, 'clarification', key);
+  }
+});
+
+test('negation in another clause does not suppress an emergency mention', () => {
+  for (const text of ['No fever, but chest pain', 'No chest pain but I cannot breathe', 'No chest pain; chest pressure now']) {
+    assert.ok(evaluateRedFlags(emptyScreening(), [text]).triggered.length > 0, text);
+  }
+});
+
+test('structured positive overrides negated text', () => {
+  assert.equal(decideCareRoute(sc({ chestPressure: 'yes' }), ['no chest pain'], { video: true, inPerson: true }).route, 'emergency');
 });

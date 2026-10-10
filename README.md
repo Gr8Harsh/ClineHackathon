@@ -6,7 +6,7 @@ The patient speaks in Assamese. The doctor reads English. Every recorded fact sh
 
 ## Status: work-in-progress scaffold
 
-This repository is being built for the Cline AI Builder Hackathon. **It is not yet an end-to-end verified application.** The latest type check found an Express route-parameter type error in the backend. Earlier tests reported 15 passing tests and 20 passing scripted cases, but these are historical, limited results—not current build guarantees or evidence of clinical safety. The existing same-process booking tests do not establish real multi-process concurrency; that test is planned.
+This repository is being built for the Cline AI Builder Hackathon. **It is not yet an end-to-end verified application.** The Phase 1 backend checkpoint fixes the build and passes 24 tests (including a real local HTTP round trip) and 20 scripted routing cases. These measured results are limited—not evidence of clinical safety, browser usability, or translation accuracy. The existing same-process booking tests do not establish real multi-process concurrency; that test is planned. See [the backend checkpoint contract](docs/BACKEND_CHECKPOINT_1.md).
 
 **Synthetic data only. Not a medical device, diagnostic tool, or production healthcare service.** There is no production authentication or patient-record isolation. Do not expose this demonstration to the internet or enter real patient information. Publishing the source does not mean deploying the service.
 
@@ -34,7 +34,7 @@ npm run dev
 
 The frontend normally opens at http://127.0.0.1:5173; the API listens at http://127.0.0.1:3001. Vite proxies `/api` to the API. SQLite data is created locally and excluded from Git. Node may report its SQLite experimental-feature warning.
 
-The scaffold currently needs repairs described above before all checks and flows work. The development launcher starts both processes; use the separate `dev:server` script when backend watch mode is needed.
+The frontend flow and booking safeguards still need the remaining repairs. The development launcher starts both processes; use the separate `dev:server` script when backend watch mode is needed.
 
 ### Optional live language service
 
@@ -69,7 +69,7 @@ The illustrative rule set refers to public NHS guidance:
 - https://www.nhs.uk/conditions/head-injury/
 - https://www.nhs.uk/conditions/poisoning/
 
-These references are not endorsement or clinical validation. Current code uses simplified and sometimes broader triggers; wording, urgency, applicability, negation handling, and local emergency guidance require clinician review. Incomplete screening and server-side booking eligibility are known repair priorities. No medication doses should be presented.
+These references are not endorsement or clinical validation. Current code uses simplified and sometimes broader triggers; wording, urgency, applicability, negation handling, and local emergency guidance require clinician review. Missing screening answers now prevent routine routing; server-side booking eligibility remains a Phase 2 priority. No medication doses should be presented.
 
 ## Collaboration and Cline
 

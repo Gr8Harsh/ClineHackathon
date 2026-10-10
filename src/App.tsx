@@ -10,9 +10,21 @@ export function App() {
   const [tab, setTab] = useState<Tab>('patient');
   const [agentMode, setAgentMode] = useState<'cline-sdk' | 'guided' | null>(null);
   const [ruleVersion, setRuleVersion] = useState('');
+  const [healthError, setHealthError] = useState('');
+  const [healthLoading, setHealthLoading] = useState(false);
+
+  async function checkHealth() {
+    setHealthLoading(true); setHealthError('');
+    try {
+      const h = await api.health();
+      if (!h.ok) throw new Error('API health check failed');
+      setAgentMode(h.agentMode); setRuleVersion(h.ruleVersion);
+    } catch (e) { setAgentMode(null); setHealthError((e as Error).message); }
+    finally { setHealthLoading(false); }
+  }
 
   useEffect(() => {
-    api.health().then(h => { setAgentMode(h.agentMode); setRuleVersion(h.ruleVersion); }).catch(() => setAgentMode('guided'));
+    void checkHealth();
   }, []);
 
   return (
@@ -24,20 +36,23 @@ export function App() {
         </div>
         <div className="spacer" />
         {agentMode && (
-          <div className="mode-pill" title={agentMode === 'cline-sdk' ? 'Live LLM via Cline SDK' : 'Deterministic guided mode — no API key set'}>
+          <div className="mode-pill" title="Configuration status is not proof of a successful live model call.">
             <span className={`mode-dot ${agentMode === 'cline-sdk' ? 'live' : ''}`} />
-            {agentMode === 'cline-sdk' ? 'Cline SDK · live agent' : 'Guided mode · no API key'}
+            {agentMode === 'cline-sdk' ? 'Cline SDK · configured' : 'Guided mode · no general translation'}
           </div>
         )}
-        <nav className="tabs">
-          <button className={tab === 'patient' ? 'active' : ''} onClick={() => setTab('patient')}>Patient</button>
-          <button className={tab === 'doctor' ? 'active' : ''} onClick={() => setTab('doctor')}>Doctor</button>
-          <button className={tab === 'eval' ? 'active' : ''} onClick={() => setTab('eval')}>Evaluation</button>
+        <nav className="tabs" aria-label="Demo views">
+          <button aria-current={tab === 'patient' ? 'page' : undefined} className={tab === 'patient' ? 'active' : ''} onClick={() => setTab('patient')}>Patient</button>
+          <button aria-current={tab === 'doctor' ? 'page' : undefined} className={tab === 'doctor' ? 'active' : ''} onClick={() => setTab('doctor')}>Doctor</button>
+          <button aria-current={tab === 'eval' ? 'page' : undefined} className={tab === 'eval' ? 'active' : ''} onClick={() => setTab('eval')}>Evaluation</button>
         </nav>
       </header>
 
       <main className="layout">
-        {tab === 'patient' && <PatientView />}
+        <div className="demo-notice"><strong>Local demo · synthetic data only.</strong> No authentication or patient isolation. Do not enter real medical information.</div>
+        {healthError && <div className="notice" role="alert">API status unavailable: {healthError} <button className="btn btn-ghost btn-sm" disabled={healthLoading} onClick={checkHealth}>Retry connection</button></div>}
+        {healthLoading && <p role="status">Checking API connection…</p>}
+        <div hidden={tab !== 'patient'}><PatientView active={tab === 'patient'} /></div>
         {tab === 'doctor' && <DoctorView />}
         {tab === 'eval' && <EvalView />}
       </main>

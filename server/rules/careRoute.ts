@@ -24,65 +24,45 @@ export function decideCareRoute(
     };
   }
 
-  if (screening.purpose === 'new-concern' && screening.physicalExam === 'yes') {
+  const missing = [...missingSafety];
+  if (screening.adult !== 'yes') missing.push('Adult eligibility: this illustrative workflow is adults-only');
+  if (screening.physicalExam === 'unknown') missing.push('Whether an examination may be needed');
+  if (missing.length) {
+    return { route: 'clarification', title: 'More information needed',
+      explanation: 'Screening is incomplete, uncertain, or outside this adult demo’s scope. Unknown is not no. Ask a clinician if unsure; do not delay urgent care.',
+      triggered: [], missing, ruleVersion };
+  }
+
+  if (screening.physicalExam === 'yes') {
+    if (!availability.inPerson) return { route: 'clarification', title: 'No suitable appointment available',
+      explanation: 'No in-person appointment is available. Availability cannot downgrade the requested care mode. Contact a clinic directly.',
+      triggered: [], missing: [], ruleVersion };
     return {
       route: 'in-person',
       title: 'In-person consultation',
-      explanation: 'You indicated a physical examination may be needed, so an in-person visit is the safer route. No emergency warning sign was detected from the information recorded so far — this does not rule out an emergency.',
+      explanation: 'You indicated an examination may be needed. An in-person appointment is available. This is an illustrative coordination choice, not validated triage. No listed warning sign was identified; this does not rule out an emergency.',
       triggered: [], missing: missingSafety, ruleVersion,
     };
   }
 
-  if (screening.purpose === 'new-concern' && screening.physicalExam === 'unknown') {
-    return {
-      route: 'clarification',
-      title: 'One more question before routing',
-      explanation: 'To choose between a video consult and an in-person visit, we need to know whether a physical examination seems needed. The assistant will ask. Missing information is not treated as "no".',
-      triggered: [], missing: [...missingSafety, 'Whether a physical examination is needed'], ruleVersion,
-    };
-  }
-
-  if (screening.purpose === 'new-concern' && screening.physicalExam === 'no') {
+  if (screening.physicalExam === 'no') {
     if (availability.video) {
       return {
         route: 'video', title: 'Video consultation possible',
-        explanation: 'No emergency warning sign was detected, and you indicated no physical examination is needed. A video consultation is available. This is a routing suggestion, not a diagnosis, and does not rule out an emergency.',
-        triggered: [], missing: missingSafety, ruleVersion,
-      };
-    }
-    if (availability.inPerson) {
-      return {
-        route: 'in-person', title: 'In-person consultation',
-        explanation: 'No video appointment is currently available, so an in-person visit is the next option.',
+        explanation: 'You answered the listed screening questions and indicated no examination is needed. Video is available, but a clinician must assess suitability. This is not a diagnosis, validated triage, or assurance that there is no emergency.',
         triggered: [], missing: missingSafety, ruleVersion,
       };
     }
     return {
       route: 'clarification', title: 'No suitable slot available',
-      explanation: 'No doctor slot is available right now. Nothing has been booked. Please try again later or contact a clinic directly.',
-      triggered: [], missing: missingSafety, ruleVersion,
-    };
-  }
-
-  if (screening.purpose === 'follow-up' && availability.video) {
-    return {
-      route: 'video', title: 'Video follow-up consultation',
-      explanation: 'Follow-up conversations can usually happen by video. This routing decision uses your recorded answers only; no emergency sign was detected in them.',
-      triggered: [], missing: missingSafety, ruleVersion,
-    };
-  }
-
-  if (screening.purpose === 'report-review') {
-    return {
-      route: 'clarification', title: 'Document review first',
-      explanation: 'You selected report review. Upload the document, verify each extracted value against the highlighted source, and answer whether an examination is needed. No interpretation of the report values is performed here.',
+      explanation: 'No video slot is available. Nothing is booked. Contact a clinic directly; availability does not establish medical suitability for another mode.',
       triggered: [], missing: missingSafety, ruleVersion,
     };
   }
 
   return {
-    route: 'in-person', title: 'In-person consultation',
-    explanation: 'Based on the recorded answers, an in-person visit is the default route because a clinician may need to examine you. No emergency warning sign was detected; this does not rule out an emergency.',
+    route: 'clarification', title: 'More information needed',
+    explanation: 'An examination preference is unresolved. A clinician must assess suitability.',
     triggered: [], missing: missingSafety, ruleVersion,
   };
 }
