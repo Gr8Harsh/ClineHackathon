@@ -11,6 +11,10 @@ Branch: `feat/backend-core`. No frontend source, public assets, shared types, or
 - One doctor clarification and patient answer round trip.
 - Invalid language/body/screening inputs produce 400; missing encounters and endpoints produce JSON 404.
 - Offline doctors and doctors without video capability have no eligible video slots returned.
+- Server-side booking eligibility: proposals and bookings are rejected for emergency or unresolved screening, for mode mismatches, and for unavailable doctors.
+- A doctor cannot hold two appointments at the same start time, including across video/in-person modes.
+- A retried successful booking returns the same booking (idempotent) instead of duplicating.
+- Two separate OS processes racing for one slot: exactly one wins (a true multi-process test).
 - Guided operation does not import the full SDK at startup. Live SDK execution remains unverified.
 
 ## Screening: frontend changes needed
@@ -57,10 +61,12 @@ Exact yes/no/unknown replies to the current guided question can update that answ
 
 ## Measured checks
 
-`npm run check`: build passes; 24 tests pass; 20/20 scripted deterministic evaluations pass with rule version `sehat-redflags-v0.2.0-illustrative`.
+`npm run check`: build passes; 31 tests pass; 20/20 scripted deterministic evaluations pass with rule version `sehat-redflags-v0.2.0-illustrative`.
 
-The HTTP test exercises valid/invalid input, explicit source IDs, each screening answer, routing, lab source lines, clarification, emergency interruption, eligible video listings, and built index serving. Browser rendering and real translation have not been tested. The existing single-process booking tests remain limited and are not concurrency proof.
+The HTTP test exercises valid/invalid input, explicit source IDs, each screening answer, routing, lab source lines, clarification, emergency interruption, eligible video listings, a booking-bypass rejection, and built index serving. Browser rendering and real translation have not been tested.
+
+Booking tests now cover server-side eligibility (unresolved and emergency), mode matching, doctor-time collision prevention, idempotent retry, in-process racing, and a genuine two-OS-process race with exactly one winner.
 
 ## Remaining work
 
-Phase 2: server-side proposal/confirmation/booking eligibility and transaction revalidation, doctor-time collision prevention, idempotency, and real separate-process race testing. Do not treat current UI-only booking restrictions as server guarantees. Phase 3: translation, verified live SDK flow, improved trace scoping, and integration/browser checks. Local synthetic data only; authentication remains absent.
+Phase 3: translation, verified live SDK flow, improved trace scoping, and integration/browser checks. Local synthetic data only; authentication remains absent. Server-side booking now rejects emergency/unresolved routing, enforces mode and doctor availability, prevents same-time double-booking, and returns idempotent retries; the multi-process race proves one winner.

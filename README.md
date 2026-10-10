@@ -6,7 +6,7 @@ The patient speaks in Assamese. The doctor reads English. Every recorded fact sh
 
 ## Status: work-in-progress scaffold
 
-This repository is being built for the Cline AI Builder Hackathon. **It is not yet an end-to-end verified application.** The Phase 1 backend checkpoint fixes the build and passes 24 tests (including a real local HTTP round trip) and 20 scripted routing cases. These measured results are limited—not evidence of clinical safety, browser usability, or translation accuracy. The existing same-process booking tests do not establish real multi-process concurrency; that test is planned. See [the backend checkpoint contract](docs/BACKEND_CHECKPOINT_1.md).
+This repository is being built for the Cline AI Builder Hackathon. **It is not yet an end-to-end verified application.** The Phase 1 backend checkpoint fixed the build; Phase 2 added server-side booking eligibility, doctor-time collision prevention, idempotent retries, and a genuine two-process concurrency test. `npm run check` currently passes the production build, 31 tests (including a real local HTTP round trip and the two-process booking race), and 20 scripted routing cases. These measured results are limited—not evidence of clinical safety, browser usability, or translation accuracy. See [the backend checkpoint contract](docs/BACKEND_CHECKPOINT_1.md).
 
 **Synthetic data only. Not a medical device, diagnostic tool, or production healthcare service.** There is no production authentication or patient-record isolation. Do not expose this demonstration to the internet or enter real patient information. Publishing the source does not mean deploying the service.
 
@@ -69,7 +69,7 @@ The illustrative rule set refers to public NHS guidance:
 - https://www.nhs.uk/conditions/head-injury/
 - https://www.nhs.uk/conditions/poisoning/
 
-These references are not endorsement or clinical validation. Current code uses simplified and sometimes broader triggers; wording, urgency, applicability, negation handling, and local emergency guidance require clinician review. Missing screening answers now prevent routine routing; server-side booking eligibility remains a Phase 2 priority. No medication doses should be presented.
+These references are not endorsement or clinical validation. Current code uses simplified and sometimes broader triggers; wording, urgency, applicability, negation handling, and local emergency guidance require clinician review. Missing screening answers now prevent routine routing and server-side booking. No medication doses should be presented.
 
 ## Collaboration and Cline
 

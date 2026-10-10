@@ -61,6 +61,15 @@ test('real HTTP intake, provenance, screening, documents and clarification round
     const doctors = (await request('/api/doctors?mode=video')).body;
     assert.ok(doctors.every((d: { status: string; video: number; slots: unknown[] }) => d.slots.length === 0 || (d.status === 'available' && d.video === 1)));
     assert.equal((await request('/api/doctors?mode=invalid')).status, 400);
+
+    // Booking bypass attempt: a fresh unresolved encounter cannot create a proposal.
+    const unresolved = (await request('/api/encounters', { language: 'en' })).body as Snapshot;
+    const videoDoctors = (await request('/api/doctors?mode=video')).body as { id: string; slots: { id: string }[] }[];
+    const openSlot = videoDoctors.flatMap(d => d.slots).find(Boolean)?.id;
+    assert.ok(openSlot, 'expected an open video slot for the bypass test');
+    const bypass = await request(`/api/encounters/${unresolved.encounter.id}/proposals`, { slotId: openSlot });
+    assert.equal(bypass.status, 409);
+    assert.match(bypass.body.error, /Screening is incomplete/i);
     const root = await fetch(base + '/');
     if (root.ok) assert.match(await root.text(), /<div id="root">/);
   } finally {
