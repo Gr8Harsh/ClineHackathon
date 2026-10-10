@@ -4,6 +4,7 @@
 
 - Branch: `feat/frontend-flow`.
 - Backend checkpoint `2c69b26` from `feat/backend-core` merged without editing backend-owned implementation, shared types or dependencies.
+- Subsequently synchronized combined checkpoint `c38f2eb` into the frontend branch. Resolved the two frontend merge conflicts by retaining server-loaded screening and exact-source navigation. Adapted the incoming frontend render test to explicitly provide the backend rule catalog; backend domain/API tests remain unchanged.
 - Frontend consumes `GET /api/screening/questions` and renders its 18 questions, including chest-pressure and radiating-pain questions. Unknown remains unknown.
 - API client supports adult, purpose and exam preference updates already provided by the server.
 
@@ -26,7 +27,7 @@
 Measured on 2026-10-10 with backend checkpoint `2c69b26` and the frontend finishing changes:
 
 - Production TypeScript/Vite build passed.
-- Existing backend/API suite: **24 tests passed, 0 failed**.
+- Combined automated suite: **28 tests passed, 0 failed**, including the four incoming frontend integration tests.
 - Deterministic routing evaluation: **20/20 passed**.
 - Headless Chrome frontend harness: **20/20 checkpoints passed**, including deliberately injected failure paths; no uncaught browser exceptions.
 - Desktop 1280×900 and mobile 390×844 screenshots captured and inspected. This is limited viewport/keyboard coverage, not a full accessibility or physical-device audit.

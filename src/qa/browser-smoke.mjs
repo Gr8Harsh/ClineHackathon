@@ -233,6 +233,8 @@ try {
   await until(async () => (await text()).includes('Confirm and book'), 'conflict proposal');
   const slots = await api('/doctors?mode=video');
   const contender = await api('/encounters', { language: 'en' });
+  for (const q of catalog.questions) await api(`/encounters/${contender.encounter.id}/screening`, { key: q.key, answer: 'no' });
+  await api(`/encounters/${contender.encounter.id}/screening`, { adult: 'yes', physicalExam: 'no' });
   const competing = await api(`/encounters/${contender.encounter.id}/proposals`, { slotId: slots.flatMap(d=>d.slots)[0].id });
   const consent = await api(`/proposals/${competing.proposal.id}/confirm`, { encounterId: contender.encounter.id });
   await api(`/proposals/${competing.proposal.id}/book`, { encounterId: contender.encounter.id, token: consent.token });
