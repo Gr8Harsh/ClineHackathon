@@ -1,0 +1,112 @@
+import { AvailableDoctor, Booking, Proposal } from '../../shared/types.ts';
+import { getDb } from '../db.ts';
+import { uuid, nowIso, token as makeToken } from '../lib/ids.ts';
+import { trace } from '../trace.ts';
+
+const PROPOSAL_TTL_MS = 5 * 60 * 1000;
+
+export interface DoctorRow { id: string; name: string; specialty: string; initials: string; languages: string; location: string; fee: number; status: string; video: number }
+
+export function listDoctors(mode?: 'video' | 'in-person'): AvailableDoctor[] {
+  const db = getDb();
+  const docs = db.prepare('SELECT * FROM doctors').all() as unknown as DoctorRow[];
+  const now = Date.now();
+  const booked = new Set((db.prepare('SELECT slot_id FROM bookings').all() as { slot_id: string }[]).map(b => b.slot_id));
+  return docs.map(d => {
+    const slots = db.prepare('SELECT * FROM slots WHERE doctor_id = ? ORDER BY starts_at').all(d.id) as unknown as { id: string; starts_at: string; mode: string }[];
+    const available = slots
+      .filter(s => new Date(s.starts_at).getTime() > now && !booked.has(s.id))
+      .filter(s => !mode || s.mode === mode)
+      .slice(0, 8)
+      .map(s => ({ id: s.id, doctorId: d.id, startsAt: s.starts_at, mode: s.mode as 'video' | 'in-person' }));
+    return {
+      id: d.id, name: d.name, specialty: d.specialty, initials: d.initials,
+      languages: d.languages, location: d.location, fee: d.fee,
+      status: d.status as 'available' | 'offline', video: d.video, slots: available,
+    };
+  });
+}
+
+/** Patient picks a real slot -> we create a proposal. This does NOT book anything. */
+export function createProposal(encounterId: string, slotId: string): Proposal {
+  const db = getDb();
+  const slot = db.prepare('SELECT s.*, d.name AS doctor_name, d.fee FROM slots s JOIN doctors d ON d.id = s.doctor_id WHERE s.id = ?').get(slotId) as
+    { id: string; starts_at: string; mode: string; doctor_name: string; fee: number } | undefined;
+  if (!slot) { trace('proposal.create', 'failed', 'Slot not found'); throw httpError(404, 'Slot not found'); }
+  const existing = db.prepare('SELECT id FROM bookings WHERE slot_id = ?').get(slotId);
+  if (existing) { trace('proposal.create', 'failed', 'Slot already booked'); throw httpError(409, 'That slot is already booked'); }
+  db.prepare('DELETE FROM proposals WHERE status = ? AND expires_at < ?').run('open', nowIso());
+
+  const proposal: Proposal = {
+    id: uuid(), slotId, doctorName: slot.doctor_name, startsAt: slot.starts_at,
+    mode: slot.mode, fee: slot.fee, expiresAt: new Date(Date.now() + PROPOSAL_TTL_MS).toISOString(),
+  };
+  db.prepare('INSERT INTO proposals (id, encounter_id, slot_id, token, expires_at, status) VALUES (?,?,?,?,?,?)')
+    .run(proposal.id, encounterId, slotId, makeToken(), proposal.expiresAt, 'open');
+  trace('proposal.create', 'completed', `Proposal for ${slot.doctor_name} at ${slot.starts_at}; nothing booked yet`);
+  return proposal;
+}
+
+export function getProposalRow(id: string) {
+  return getDb().prepare('SELECT * FROM proposals WHERE id = ?').get(id) as
+    { id: string; encounter_id: string; slot_id: string; token: string; expires_at: string; approved_at: string | null; consumed_at: string | null; status: string } | undefined;
+}
+
+export function httpError(status: number, message: string): Error & { status: number } {
+  const err = new Error(message) as Error & { status: number };
+  err.status = status;
+  return err;
+}
+
+/**
+ * ATOMIC BOOKING. Runs in an IMMEDIATE transaction so concurrent attempts
+ * serialize at the database. The UNIQUE constraint on bookings.slot_id is the
+ * final guarantee: at most one booking can ever exist for a slot.
+ */
+export function bookSlot(proposalId: string, confirmationToken: string, encounterId: string): Booking {
+  const db = getDb();
+  const proposal = getProposalRow(proposalId);
+  if (!proposal) { trace('booking.attempt', 'failed', 'Proposal not found'); throw httpError(404, 'Proposal not found'); }
+  if (proposal.encounter_id !== encounterId) { trace('booking.attempt', 'failed', 'Proposal belongs to another encounter'); throw httpError(403, 'This proposal belongs to another patient'); }
+  if (proposal.consumed_at) { trace('booking.attempt', 'failed', 'Proposal already used'); throw httpError(409, 'This proposal was already used'); }
+  if (new Date(proposal.expires_at).getTime() < Date.now()) { trace('booking.attempt', 'failed', 'Proposal expired'); throw httpError(410, 'This proposal expired. Choose the slot again.'); }
+  if (proposal.approved_at !== 'patient-confirmed') { trace('booking.attempt', 'failed', 'Missing patient confirmation'); throw httpError(403, 'Booking requires explicit patient confirmation'); }
+  if (!confirmationToken || confirmationToken !== proposal.token) { trace('booking.attempt', 'failed', 'Invalid confirmation token'); throw httpError(403, 'Invalid confirmation'); }
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const slot = db.prepare('SELECT s.*, d.name AS doctor_name, d.fee FROM slots s JOIN doctors d ON d.id = s.doctor_id WHERE s.id = ?').get(proposal.slot_id) as
+      { id: string; starts_at: string; mode: string; doctor_name: string; fee: number } | undefined;
+    if (!slot) { db.exec('ROLLBACK'); throw httpError(404, 'Slot no longer exists'); }
+    const clash = db.prepare('SELECT id FROM bookings WHERE slot_id = ?').get(slot.id);
+    if (clash) { db.exec('ROLLBACK'); trace('booking.attempt', 'failed', 'Slot taken by concurrent booking'); throw httpError(409, 'Sorry, that slot was just taken.'); }
+    const id = uuid();
+    db.prepare('INSERT INTO bookings (id, encounter_id, slot_id, proposal_id, doctor_name, starts_at, mode, fee, created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(id, encounterId, slot.id, proposal.id, slot.doctor_name, slot.starts_at, slot.mode, slot.fee, nowIso());
+    db.prepare('UPDATE proposals SET consumed_at = ?, status = ? WHERE id = ?').run(nowIso(), 'consumed', proposal.id);
+    db.exec('COMMIT');
+    trace('booking.confirm', 'completed', `Booked ${slot.doctor_name} ${slot.starts_at} (${slot.mode}) — one winner by UNIQUE constraint`);
+    return { id, encounterId, slotId: slot.id, doctorName: slot.doctor_name, startsAt: slot.starts_at, mode: slot.mode, fee: slot.fee, createdAt: nowIso() };
+  } catch (err) {
+    try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
+    throw err;
+  }
+}
+
+/** Patient pressed "Confirm" — server marks the proposal confirmed and reveals the one-time token. */
+export function approveProposal(proposalId: string, encounterId: string): string {
+  const db = getDb();
+  const proposal = getProposalRow(proposalId);
+  if (!proposal) throw httpError(404, 'Proposal not found');
+  if (proposal.encounter_id !== encounterId) throw httpError(403, 'Not your proposal');
+  if (proposal.consumed_at) throw httpError(409, 'Proposal already used');
+  db.prepare('UPDATE proposals SET approved_at = ? WHERE id = ?').run('patient-confirmed', proposalId);
+  trace('proposal.approve', 'completed', 'Patient explicitly confirmed; one-time confirmation token issued');
+  return proposal.token;
+}
+
+export function bookingForEncounter(encounterId: string): Booking | null {
+  const b = getDb().prepare('SELECT * FROM bookings WHERE encounter_id = ? ORDER BY created_at DESC LIMIT 1').get(encounterId) as
+    { id: string; encounter_id: string; slot_id: string; doctor_name: string; starts_at: string; mode: string; fee: number; created_at: string } | undefined;
+  return b ? { id: b.id, encounterId: b.encounter_id, slotId: b.slot_id, doctorName: b.doctor_name, startsAt: b.starts_at, mode: b.mode, fee: b.fee, createdAt: b.created_at } : null;
+}
