@@ -1,0 +1,255 @@
+[
+  {
+    "id": "fever",
+    "title": { "en": "Fever", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["fever", "high temperature"],
+    "ask_first": [
+      { "id": "age", "en": "Who is it for (age)?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" },
+      { "id": "duration", "en": "How many days?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "number", "care_after": 2 },
+      { "id": "warning", "en": "Any stiff neck, rash, fits, or breathing trouble?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "chills", "en": "Chills and shivering?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "mosquito", "en": "Recent mosquito exposure?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" }
+    ],
+    "comfort_measures": [
+      { "en": "Rest in a cool, ventilated room", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Drink plenty of clean fluids (boiled and cooled water, ORS, rice water, soup)", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Wear light clothing. Remove extra blankets", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Lukewarm (not cold) sponging of the forehead and body can feel soothing", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [
+      { "en": "Cold water or ice baths", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Alcohol rubs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Giving any medicine without asking a pharmacist or health worker", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "see_doctor_if": [
+      { "en": "Fever lasting more than 2 days, or at any time with severe headache, stiff neck, rash, trouble breathing, persistent vomiting, confusion or fits", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "In and after the monsoon, fever with chills, body pain or severe headache can be malaria or dengue. Do not wait it out. Get tested at the nearest health centre", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "go_now_if": [{ "en": "Trouble breathing, confusion or fits", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": 2,
+    "care_time_limit": { "en": "Seek care if fever lasts more than 2 days; seek care earlier for the listed warning signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.1"
+  },
+  {
+    "id": "cough-cold",
+    "title": { "en": "Cough, cold and sore throat", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["cough", "cold", "sore throat"],
+    "ask_first": [
+      { "id": "duration", "en": "Duration (days)?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "number", "care_after": 14 },
+      { "id": "warning", "en": "Any breathing difficulty, chest pain, wheezing, or coughing blood?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "fever", "en": "Fever?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "age", "en": "Age?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" }
+    ],
+    "comfort_measures": [
+      { "en": "Rest and warm fluids (warm water, soup)", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Gargle with warm salt water for sore throat", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Steam inhalation only for adults, carefully, with no hot water near children", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Keep the head slightly raised when sleeping", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [
+      { "en": "Smoke, dust, cold drinks", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Giving honey to infants under 1 year", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "see_doctor_if": [{ "en": "Cough lasting more than 2 weeks (needs TB checking), breathing difficulty, fast breathing in a child, chest pain, coughing blood, or high fever lasting more than 2 days", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Breathing difficulty, chest pain, or coughing blood", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": 14,
+    "care_time_limit": { "en": "Seek care for a cough lasting more than 2 weeks, or high fever lasting more than 2 days; seek help earlier for the listed warning signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.2"
+  },
+  {
+    "id": "headache",
+    "title": { "en": "Headache", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["headache", "head ache"],
+    "ask_first": [
+      { "id": "sudden", "en": "Did the headache start suddenly rather than gradually?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "worst", "en": "Worst headache of life?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "warning", "en": "Any fever, stiff neck, vomiting, vision change, weakness, head injury, or confusion?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" }
+    ],
+    "comfort_measures": [
+      { "en": "Rest in a quiet, dim room", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Drink water. Many headaches are linked to dehydration or missed meals", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "A cool cloth on the forehead or neck", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Gentle neck and shoulder stretching", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [
+      { "en": "Screens, loud noise, skipping meals", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Giving any medicine without advice from a pharmacist or doctor", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "see_doctor_if": [{ "en": "Headaches that keep returning for several days", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Sudden severe headache, headache after a head injury, with fever and stiff neck, with vomiting, vision change, weakness or confusion", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": null,
+    "care_time_limit": { "en": "Seek care for headaches that keep returning for several days; the exact deadline needs clinician review. Get help now for the listed emergency signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": true,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.3"
+  },
+  {
+    "id": "diarrhoea",
+    "title": { "en": "Loose motions (diarrhoea) and dehydration", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["loose motions", "diarrhoea", "diarrhea", "dehydration"],
+    "ask_first": [
+      { "id": "age", "en": "Age?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" },
+      { "id": "duration", "en": "How many days?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "number", "care_after": 2 },
+      { "id": "blood", "en": "Any blood in stool?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "vomiting", "en": "Vomiting?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "drink", "en": "Can the person drink?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "emergency" },
+      { "id": "urine", "en": "Passing urine normally?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "doctor" }
+    ],
+    "comfort_measures": [
+      { "en": "ORS (oral rehydration solution): mix exactly as the packet says, using clean boiled and cooled water, and give small, frequent sips", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Continue breastfeeding for babies and normal eating when possible", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Wash hands with soap before eating and after the toilet", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Fizzy drinks, packaged juices, unboiled water, stopping food completely. Giving anti-diarrhoea medicines without advice", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Blood in stool, loose motions more than 2 days, cannot keep fluids down, very sleepy, sunken eyes, very dry mouth, or little or no urine. Children, elderly and pregnant women should be seen early", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Blood in stool, very sleepy, sunken eyes, cannot drink, or no urine for 8 hours or more", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": 2,
+    "care_time_limit": { "en": "Seek care for loose motions lasting more than 2 days; seek help earlier for the listed warning signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.4"
+  },
+  {
+    "id": "vomiting",
+    "title": { "en": "Vomiting or upset stomach", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["vomiting", "vomit", "upset stomach"],
+    "ask_first": [
+      { "id": "duration", "en": "Duration (hours)?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "number", "care_after": 12 },
+      { "id": "blood", "en": "Blood in vomit?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "pain", "en": "Severe belly pain?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "fever", "en": "Fever?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "drink", "en": "Able to drink?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "emergency" },
+      { "id": "pregnant", "en": "Pregnant?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" }
+    ],
+    "comfort_measures": [
+      { "en": "Rest, then sip small amounts of ORS or clean water often", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Once vomiting settles, start with plain foods (rice, banana, toast)", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Oily, spicy food, large meals, alcohol", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Vomiting blood, severe or worsening belly pain, cannot keep any fluid down for more than 12 to 24 hours, signs of dehydration, or vomiting after a head injury", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Vomiting blood, cannot drink, severe dehydration, or vomiting after a head injury", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": null,
+    "care_time_limit": { "en": "Seek care if unable to keep any fluid down for more than 12 to 24 hours; seek help earlier for the listed warning signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.5"
+  },
+  {
+    "id": "cuts",
+    "title": { "en": "Minor cuts and scrapes", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["cut", "cuts", "scrape", "scrapes"],
+    "ask_first": [
+      { "id": "deep", "en": "Is the cut deep or gaping?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "stopping", "en": "Is bleeding stopping?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "emergency" },
+      { "id": "dirty", "en": "Caused by dirty metal, an animal, or soil?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" },
+      { "id": "tetanus", "en": "Last tetanus shot?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" }
+    ],
+    "comfort_measures": [
+      { "en": "Press firmly with a clean cloth for 10 minutes to stop bleeding", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Rinse with clean running water and mild soap", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Cover with a clean dry bandage and change it daily", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Putting soil, ash, turmeric paste, or other home powders on an open wound", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Bleeding that won't stop, deep or gaping wound, animal or human bite, rusty or dirty object, or signs of infection (spreading redness, pus, swelling, fever). Ask a health worker about tetanus protection", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Bleeding that won't stop with firm pressure", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": null,
+    "care_time_limit": { "en": "Seek care for the listed warning signs. This draft does not specify a waiting deadline for a minor cut; clinician clarification is required", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": true,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.6"
+  },
+  {
+    "id": "burns",
+    "title": { "en": "Minor burns", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["burn", "burns", "scald"],
+    "ask_first": [
+      { "id": "chemical", "en": "Was the burn caused by a chemical or electricity rather than fire or hot liquid?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "large", "en": "Is it larger than the person's palm?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "location", "en": "Is it on the face, hands, feet or private parts?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" },
+      { "id": "age", "en": "Age?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" },
+      { "id": "superficial", "en": "Is it small and superficial, rather than deep, white or blackened?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "emergency" }
+    ],
+    "comfort_measures": [
+      { "en": "Hold under cool, not ice-cold, running water for about 20 minutes", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Remove rings and tight items before swelling starts", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Cover loosely with a clean non-fluffy cloth", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Ice, butter, oil, toothpaste, ink or home powders. Bursting blisters", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Burns larger than the person's palm, on the face, hands, feet or private parts, deep or white or blackened burns, chemical or electrical burns, or any burn in a baby, child or elderly person (go now)", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Burns larger than the person's palm, on the face, hands, feet or private parts, deep or white or blackened burns, chemical or electrical burns, or any burn in a baby, child or elderly person", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": null,
+    "care_time_limit": { "en": "Go now for the listed warning signs. This draft does not specify a waiting deadline for a minor burn; clinician clarification is required", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": true,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.7"
+  },
+  {
+    "id": "sprain",
+    "title": { "en": "Sprain, strain and body ache", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["sprain", "strain", "body ache", "body aches"],
+    "ask_first": [
+      { "id": "cause", "en": "How did it happen?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" },
+      { "id": "weight", "en": "Can the person bear weight?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "doctor" },
+      { "id": "warning", "en": "Any deformity, numbness or severe swelling?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "doctor" }
+    ],
+    "comfort_measures": [
+      { "en": "Rest the area", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Cool cloth for 15 to 20 minutes at a time in the first 1 to 2 days", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Gentle compression with a bandage, not too tight", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Raise the limb above heart level", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Massaging a fresh injury hard, walking on it if painful", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Cannot bear weight, obvious deformity, numbness, severe swelling, or no improvement in 3 days", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [],
+    "max_days_before_care": 3,
+    "care_time_limit": { "en": "Seek care if there is no improvement in 3 days; seek help earlier for the listed warning signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.8"
+  },
+  {
+    "id": "heat",
+    "title": { "en": "Heat exhaustion (summer)", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "symptom_terms": ["heat exhaustion", "heat exposure", "overheated"],
+    "ask_first": [
+      { "id": "exposure", "en": "Was the person in the sun or doing heavy work?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_no": "doctor" },
+      { "id": "symptoms", "en": "Dizzy, weak, nauseous, very thirsty?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "text" },
+      { "id": "confused", "en": "Confused?", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE", "kind": "yesno", "if_yes": "emergency" }
+    ],
+    "comfort_measures": [
+      { "en": "Move to shade or a cool place, loosen clothing", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Sip water or ORS slowly", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+      { "en": "Cool the skin with a wet cloth or fan", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }
+    ],
+    "avoid": [{ "en": "Going back to work in the heat the same day", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "see_doctor_if": [{ "en": "Confusion, fainting, very high body temperature, hot dry skin with no sweating (emergency, possible heatstroke), or no improvement within 30 to 60 minutes", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "go_now_if": [{ "en": "Confusion, fainting, very high body temperature, or hot dry skin with no sweating", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" }],
+    "max_days_before_care": null,
+    "care_time_limit": { "en": "Seek care if there is no improvement within 30 to 60 minutes; get help now for the listed emergency signs", "hi": "TODO_TRANSLATE", "as": "TODO_TRANSLATE" },
+    "timing_needs_review": false,
+    "excluded_groups": ["infant", "under5", "pregnant", "over65", "chronic"],
+    "reviewed_by": null, "reviewed_on": null, "review_status": "needs_clinician_review",
+    "translation_reviewed": { "en": false, "hi": false, "as": false },
+    "source_section": "4.9"
+  }
+]

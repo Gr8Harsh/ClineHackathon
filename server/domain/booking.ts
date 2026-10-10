@@ -4,6 +4,7 @@ import { uuid, nowIso, token as makeToken } from '../lib/ids.ts';
 import { trace } from '../trace.ts';
 import { getEncounter } from './encounterStore.ts';
 import { decideCareRoute } from '../rules/careRoute.ts';
+import { conversationComplete } from './conversation.ts';
 
 const PROPOSAL_TTL_MS = 5 * 60 * 1000;
 
@@ -24,6 +25,7 @@ function bookingGate(encounterId: string): { block: string | null; route: 'video
   const freeText = enc.messages.filter(m => m.role === 'patient').map(m => `${m.english ?? ''} ${m.text}`);
   const decision = decideCareRoute(enc.screening, freeText, { video: true, inPerson: true });
   if (decision.route === 'emergency') return { block: 'Emergency route: booking is disabled', route: null };
+  if (enc.conversation && !conversationComplete(enc)) return { block: 'Required consultation fields are incomplete', route: null };
   if (decision.route === 'clarification') return { block: 'Screening is incomplete; booking is unavailable', route: null };
   return { block: null, route: decision.route };
 }
@@ -143,6 +145,15 @@ export function approveProposal(proposalId: string, encounterId: string): string
   db.prepare('UPDATE proposals SET approved_at = ? WHERE id = ?').run('patient-confirmed', proposalId);
   trace('proposal.approve', 'completed', 'Patient explicitly confirmed; one-time confirmation token issued');
   return proposal.token;
+}
+
+/** Latest open, unexpired, unconsumed proposal (made by the patient UI or the agent's propose_slot tool). */
+export function openProposalForEncounter(encounterId: string): Proposal | null {
+  const row = getDb().prepare(`SELECT p.id, p.slot_id, p.expires_at, s.starts_at, s.mode, d.name AS doctor_name, d.fee
+    FROM proposals p JOIN slots s ON s.id = p.slot_id JOIN doctors d ON d.id = s.doctor_id
+    WHERE p.encounter_id = ? AND p.consumed_at IS NULL AND p.expires_at > ? ORDER BY p.expires_at DESC LIMIT 1`).get(encounterId, nowIso()) as
+    { id: string; slot_id: string; expires_at: string; starts_at: string; mode: string; doctor_name: string; fee: number } | undefined;
+  return row ? { id: row.id, slotId: row.slot_id, doctorName: row.doctor_name, startsAt: row.starts_at, mode: row.mode, fee: row.fee, expiresAt: row.expires_at } : null;
 }
 
 export function bookingForEncounter(encounterId: string): Booking | null {
