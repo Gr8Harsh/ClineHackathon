@@ -1,7 +1,8 @@
-import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument } from '../shared/types.ts';
+import type { AvailableDoctor, Booking, EvalReport, Language, Message, Proposal, Snapshot, TraceEvent, LabDocument, Answer, Screening } from '../shared/types.ts';
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
+    signal: AbortSignal.timeout(90000),
     headers: { 'content-type': 'application/json' },
     ...init,
   });
@@ -19,7 +20,7 @@ export const api = {
   getEncounter: (id: string) => req<Snapshot>(`/api/encounters/${id}`),
   listEncounters: () => req<{ id: string; name: string; language: Language; createdAt: string }[]>('/api/encounters'),
   sendMessage: (id: string, text: string) => req<{ message: Message; snapshot: Snapshot }>(`/api/encounters/${id}/messages`, { method: 'POST', body: JSON.stringify({ text }) }),
-  setScreening: (id: string, body: { key?: string; answer?: string; purpose?: string; physicalExam?: string }) => req<Snapshot>(`/api/encounters/${id}/screening`, { method: 'POST', body: JSON.stringify(body) }),
+  setScreening: (id: string, body: { key?: string; answer?: Answer; purpose?: Screening['purpose']; physicalExam?: Answer; adult?: Answer }) => req<Snapshot>(`/api/encounters/${id}/screening`, { method: 'POST', body: JSON.stringify(body) }),
   confirmField: (id: string, key: string) => req<Snapshot>(`/api/encounters/${id}/fields/${key}/confirm`, { method: 'POST', body: '{}' }),
   uploadDocument: (id: string, name: string, text: string) => req<{ document: LabDocument; snapshot: Snapshot }>(`/api/encounters/${id}/documents`, { method: 'POST', body: JSON.stringify({ name, text }) }),
   doctors: (mode?: 'video' | 'in-person') => req<AvailableDoctor[]>(`/api/doctors${mode ? `?mode=${mode}` : ''}`),

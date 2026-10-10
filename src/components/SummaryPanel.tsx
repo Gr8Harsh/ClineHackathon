@@ -1,4 +1,4 @@
-import type { BriefField, FieldKey } from '../../shared/types.ts';
+import type { BriefField, FieldKey, Message } from '../../shared/types.ts';
 
 const LABELS: Record<FieldKey, string> = {
   concern: 'Main concern', duration: 'Duration', history: 'Medical history',
@@ -6,16 +6,18 @@ const LABELS: Record<FieldKey, string> = {
 };
 
 function provenanceBadge(field: BriefField) {
-  if (field.value === null) return <span className="prov prov-missing">not yet asked</span>;
-  if (field.verification === 'patient-confirmed') return <span className="prov prov-confirmed">✓ patient-confirmed</span>;
+  if (field.value === null) return <span className="prov prov-missing">not recorded</span>;
+  if (!field.sourceId) return <span className="prov prov-missing">source unavailable</span>;
   return <span className="prov prov-reported">patient-reported</span>;
 }
 
 export function SummaryPanel({
-  fields, onConfirm, onSource,
+  fields, messages, onConfirm, onSource, busy = false,
 }: {
   fields: BriefField[];
-  onConfirm: (key: string) => void;
+  messages: Message[];
+  onConfirm?: (key: string) => void;
+  busy?: boolean;
   onSource: (messageId: string) => void;
 }) {
   return (
@@ -31,26 +33,27 @@ export function SummaryPanel({
               {provenanceBadge(f)}
             </div>
             {f.value === null ? (
-              <div className="field-value missing">Not yet asked — this is not the same as “none”.</div>
+              <div className="field-value missing">Not yet recorded — this is not the same as “none”.</div>
             ) : (
               <div className="field-value">{f.value}</div>
             )}
             <div className="row" style={{ marginTop: 4 }}>
-              {f.sourceId && (
+              {f.value !== null && <><span className={`prov ${f.verification === 'patient-confirmed' ? 'prov-confirmed' : 'prov-missing'}`}>{f.verification === 'patient-confirmed' ? 'Patient confirmed wording' : 'Unverified'}</span><span className="meta">{f.transformation === 'translation' ? 'Translated · check original' : 'No translation recorded'}</span></>}
+              {f.sourceId && messages.some(m => m.id === f.sourceId) && (
                 <button className="source-link" onClick={() => onSource(f.sourceId!)}>
-                  ↳ from what you said
+                  View original message
                 </button>
               )}
-              {f.value !== null && f.verification === 'unverified' && (
-                <button className="btn btn-ghost btn-sm" onClick={() => onConfirm(f.key)}>
-                  I confirm this is accurate
+              {onConfirm && f.value !== null && f.sourceId && f.verification === 'unverified' && (
+                <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onConfirm(f.key)}>
+                  Confirm recorded wording
                 </button>
               )}
             </div>
           </div>
         ))}
         <p className="empty" style={{ marginBottom: 4 }}>
-          Values are extracted from your own words. Nothing here is inferred or guessed. Confirm a line only if it matches what you meant.
+          Missing fields may not have been asked or captured. Extraction and translation can be wrong. Patient confirmation checks wording, not medical accuracy.
         </p>
       </div>
     </section>
